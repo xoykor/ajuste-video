@@ -1,0 +1,7 @@
+{
+  "uuid": "ajuste-video@xoykor",
+  "name": "Ajuste de vídeo",
+  "description": "Aplica ajustes globais de cor definidos pelo aplicativo Ajuste de vídeo.",
+  "shell-version": ["45", "46", "47", "48", "49", "50", "51"],
+  "version": 1
+}

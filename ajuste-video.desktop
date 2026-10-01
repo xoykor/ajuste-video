@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Ajuste de vídeo
+Comment=Ajuste brilho, contraste, gamma, saturação e matiz do desktop
+Exec=ajuste-video
+Icon=ajuste-video
+Categories=Settings;HardwareSettings;
+Terminal=false

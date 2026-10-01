@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/ajuste-video">
+    <file alias="shaders/adjust.frag">shaders/adjust.frag</file>
+  </qresource>
+</RCC>

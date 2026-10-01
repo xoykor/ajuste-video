@@ -1,0 +1,14 @@
+{
+    "KPlugin": {
+        "Id": "ajustevideo",
+        "Name": "Ajuste de vídeo",
+        "Description": "Ajustes globais de imagem para o desktop",
+        "Category": "Appearance",
+        "Icon": "preferences-desktop-display",
+        "License": "GPL-3.0-or-later",
+        "Version": "0.1.1",
+        "Website": "https://github.com/xoykor/ajuste-video",
+        "ServiceTypes": ["KWin/Effect"]
+    },
+    "X-KWin-Exclusive": false
+}
