@@ -170,16 +170,20 @@ private:
             if (index > 0) applyPreset(m_presets->itemData(index).toString());
         });
 
-        auto *footer = new QHBoxLayout();
+        auto *footer = new QVBoxLayout();
         m_status = new QLabel();
         m_status->setObjectName(QStringLiteral("status"));
+        m_status->setWordWrap(true);
         auto *reset = new QPushButton(QStringLiteral("Restaurar padrão"));
         reset->setObjectName(QStringLiteral("reset"));
         m_installBackendButton = new QPushButton(QStringLiteral("Instalar suporte"));
         m_installBackendButton->setObjectName(QStringLiteral("installBackend"));
-        footer->addWidget(m_status, 1);
-        footer->addWidget(m_installBackendButton);
-        footer->addWidget(reset);
+        auto *footerActions = new QHBoxLayout();
+        footerActions->addStretch();
+        footerActions->addWidget(m_installBackendButton);
+        footerActions->addWidget(reset);
+        footer->addWidget(m_status);
+        footer->addLayout(footerActions);
         outer->addLayout(footer);
         connect(reset, &QPushButton::clicked, this, [this] { applyPreset(QStringLiteral("default")); });
         connect(m_installBackendButton, &QPushButton::clicked, this, [this] { installBackendFiles(); });
@@ -410,14 +414,20 @@ private:
         m_backendSource = source;
         m_backendBuild = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
             + QStringLiteral("/kwin-backend-build");
+        QDir cachedBuild(m_backendBuild);
+        if (cachedBuild.exists() && !cachedBuild.removeRecursively()) {
+            m_status->setText(QStringLiteral("Não consegui limpar o cache antigo de compilação"));
+            m_status->setToolTip(m_backendBuild);
+            return;
+        }
         QDir().mkpath(QFileInfo(m_backendBuild).absolutePath());
         m_backendStage = 0;
         m_backendProcess = new QProcess(this);
         connect(m_backendProcess, &QProcess::finished, this, [this](int exitCode, QProcess::ExitStatus exitStatus) {
             const QString detail = QString::fromLocal8Bit(m_backendProcess->readAllStandardError()).trimmed();
             if (exitStatus != QProcess::NormalExit || exitCode != 0) {
-                m_status->setText(detail.isEmpty() ? QStringLiteral("A instalação do suporte KWin falhou")
-                                                  : detail.right(180));
+                m_status->setText(QStringLiteral("Falha ao instalar o suporte KWin; detalhes no tooltip"));
+                m_status->setToolTip(detail.isEmpty() ? QStringLiteral("A instalação do suporte KWin falhou") : detail);
                 m_backendProcess->deleteLater();
                 m_backendProcess = nullptr;
                 m_installBackendButton->show();
