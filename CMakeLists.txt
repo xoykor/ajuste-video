@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(ajuste-video VERSION 0.1.1 LANGUAGES CXX)
+project(ajuste-video VERSION 0.1.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -37,6 +37,6 @@ install(TARGETS ajuste-video DESTINATION ${KDE_INSTALL_BINDIR})
 install(FILES ajuste-video.desktop DESTINATION ${KDE_INSTALL_APPDIR})
 install(FILES ajuste-video.svg DESTINATION ${KDE_INSTALL_ICONDIR}/hicolor/scalable/apps)
 install(DIRECTORY backends/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ajuste-video/backends)
-install(FILES CMakeLists.txt effect.cpp effect.h effect.qrc effectplugin.cpp metadata.json ajuste-video.desktop ajuste-video.svg
+install(FILES CMakeLists.txt main.cpp effect.cpp effect.h effect.qrc effectplugin.cpp metadata.json ajuste-video.desktop ajuste-video.svg
         DESTINATION ${CMAKE_INSTALL_DATADIR}/ajuste-video/source)
 install(DIRECTORY shaders/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ajuste-video/source/shaders)

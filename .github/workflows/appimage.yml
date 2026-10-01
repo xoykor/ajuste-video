@@ -24,6 +24,8 @@ jobs:
           cmake -S . -B build -DBUILD_KWIN_EFFECT=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
           cmake --build build --parallel
           DESTDIR="$PWD/AppDir" cmake --install build
+          test -f AppDir/usr/share/ajuste-video/source/main.cpp
+          test -f AppDir/usr/share/ajuste-video/source/effect.cpp
           mkdir -p AppDir/usr/share/metainfo
       - name: Download linuxdeploy
         run: |
