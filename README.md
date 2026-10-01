@@ -6,7 +6,7 @@ O repositório indicado (`xoykor/ajuste-video`) não contém arquivos ainda. Est
 
 ## Ambientes compatíveis
 
-- **KDE Plasma/Wayland:** todos os controles são aplicados pelo efeito do KWin. O AppImage instala o suporte específico para a versão local do KWin pelo botão **Instalar suporte**; o processo usa `sudo` para instalar as dependências e o plugin no sistema.
+- **KDE Plasma/Wayland:** todos os controles são aplicados pelo efeito do KWin. O AppImage é executável diretamente; se faltar o backend, o botão **Instalar suporte** dentro do próprio aplicativo compila o efeito para o KWin local e solicita autorização para instalar dependências e plugin.
 - **GNOME:** todos os controles são aplicados por uma extensão Clutter/Cogl incluída. Use **Instalar suporte** no aplicativo e reabra a sessão.
 - **Cinnamon:** todos os controles são aplicados por uma extensão Clutter/Cogl incluída. Use **Instalar suporte** e reabra a sessão.
 - **XFCE/X11:** brilho e gamma são aplicados por `xrandr` e duram até a sessão terminar. O XFCE/Wayland não tem backend de compositor implementado.
@@ -25,7 +25,7 @@ O instalador compila o efeito do KWin e a interface Qt, instala os arquivos no s
 
 ## AppImage
 
-Tags `v*` no GitHub geram uma release com `ajuste-video-x86_64.AppImage`. O AppImage inclui a interface e os backends GNOME/Cinnamon. O efeito do KWin precisa ser instalado no sistema porque os plugins do KWin têm de corresponder à versão do compositor instalado.
+Tags `v*` no GitHub geram uma release com `ajuste-video-x86_64.AppImage`. O AppImage inclui a interface, os backends GNOME/Cinnamon e o código-fonte usado para compilar o efeito do KWin localmente, caso necessário. O fluxo de instalação do backend fica dentro do aplicativo.
 
 Para gerar localmente, instale as dependências do build e `linuxdeploy-x86_64.AppImage`, depois execute `packaging/build-appimage.sh` com `LINUXDEPLOY=/caminho/para/linuxdeploy`.
 

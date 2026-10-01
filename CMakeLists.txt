@@ -39,5 +39,4 @@ install(FILES ajuste-video.svg DESTINATION ${KDE_INSTALL_ICONDIR}/hicolor/scalab
 install(DIRECTORY backends/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ajuste-video/backends)
 install(FILES CMakeLists.txt effect.cpp effect.h effect.qrc effectplugin.cpp metadata.json ajuste-video.desktop ajuste-video.svg
         DESTINATION ${CMAKE_INSTALL_DATADIR}/ajuste-video/source)
-install(PROGRAMS install-cachyos.sh DESTINATION ${CMAKE_INSTALL_DATADIR}/ajuste-video/source)
 install(DIRECTORY shaders/ DESTINATION ${CMAKE_INSTALL_DATADIR}/ajuste-video/source/shaders)

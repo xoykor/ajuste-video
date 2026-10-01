@@ -13,6 +13,7 @@
 #include <QIcon>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QProcess>
 #include <QJsonDocument>
@@ -351,14 +352,16 @@ private:
     void installBackendFiles()
     {
         if (m_backend == QStringLiteral("kde")) {
-            const QString script = bundledDataDir() + QStringLiteral("/source/install-cachyos.sh");
-            const QString terminal = QStandardPaths::findExecutable(QStringLiteral("konsole"));
-            if (terminal.isEmpty() || !QFileInfo::exists(script)) {
-                m_status->setText(QStringLiteral("Instalador do backend KDE não está disponível"));
+            const QString source = bundledDataDir() + QStringLiteral("/source");
+            if (!QFileInfo::exists(source + QStringLiteral("/CMakeLists.txt"))) {
+                m_status->setText(QStringLiteral("O suporte KWin não está incluído neste pacote"));
                 return;
             }
-            QProcess::startDetached(terminal, {QStringLiteral("-e"), script});
-            m_status->setText(QStringLiteral("Instalador aberto no terminal · reinicie a sessão ao terminar"));
+            const auto answer = QMessageBox::question(this, QStringLiteral("Instalar suporte do KDE"),
+                QStringLiteral("O Ajuste de vídeo precisa compilar um efeito para a versão do KWin deste sistema.\n\n"
+                               "Vou instalar as dependências de compilação com o gerenciador de pacotes e pedir autorização do sistema.\n\n"
+                               "Deseja continuar?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+            if (answer == QMessageBox::Yes) startKdeBackendInstall(source);
             return;
         }
         const QString id = QStringLiteral("ajuste-video@xoykor");
@@ -399,6 +402,63 @@ private:
             m_status->setText(QStringLiteral("Instalado · encerre e reabra a sessão Cinnamon"));
         }
         m_installBackendButton->hide();
+    }
+
+    void startKdeBackendInstall(const QString &source)
+    {
+        if (m_backendProcess) return;
+        m_backendSource = source;
+        m_backendBuild = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+            + QStringLiteral("/kwin-backend-build");
+        QDir().mkpath(QFileInfo(m_backendBuild).absolutePath());
+        m_backendStage = 0;
+        m_backendProcess = new QProcess(this);
+        connect(m_backendProcess, &QProcess::finished, this, [this](int exitCode, QProcess::ExitStatus exitStatus) {
+            const QString detail = QString::fromLocal8Bit(m_backendProcess->readAllStandardError()).trimmed();
+            if (exitStatus != QProcess::NormalExit || exitCode != 0) {
+                m_status->setText(detail.isEmpty() ? QStringLiteral("A instalação do suporte KWin falhou")
+                                                  : detail.right(180));
+                m_backendProcess->deleteLater();
+                m_backendProcess = nullptr;
+                m_installBackendButton->show();
+                return;
+            }
+            ++m_backendStage;
+            if (m_backendStage == 1) {
+                m_status->setText(QStringLiteral("Dependências prontas · configurando o plugin"));
+                m_backendProcess->start(QStringLiteral("cmake"), {QStringLiteral("-S"), m_backendSource,
+                    QStringLiteral("-B"), m_backendBuild, QStringLiteral("-DCMAKE_INSTALL_PREFIX=/usr")});
+            } else if (m_backendStage == 2) {
+                m_status->setText(QStringLiteral("Compilando o suporte para este KWin"));
+                m_backendProcess->start(QStringLiteral("cmake"), {QStringLiteral("--build"), m_backendBuild,
+                    QStringLiteral("--parallel"), QStringLiteral("4")});
+            } else if (m_backendStage == 3) {
+                m_status->setText(QStringLiteral("Instalando o efeito do KWin"));
+                m_backendProcess->start(QStringLiteral("pkexec"), {QStringLiteral("cmake"), QStringLiteral("--install"), m_backendBuild});
+            } else {
+                QProcess config;
+                config.start(QStringLiteral("kwriteconfig6"), {QStringLiteral("--file"), QStringLiteral("kwinrc"),
+                    QStringLiteral("--group"), QStringLiteral("Plugins"), QStringLiteral("--key"), QStringLiteral("ajustevideoEnabled"), QStringLiteral("true")});
+                config.waitForFinished(1500);
+                QProcess::startDetached(QStringLiteral("qdbus6"), {QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"), QStringLiteral("reconfigure")});
+                m_status->setText(QStringLiteral("Suporte instalado · encerre e reabra a sessão KDE"));
+                m_installBackendButton->hide();
+                m_backendProcess->deleteLater();
+                m_backendProcess = nullptr;
+            }
+        });
+        connect(m_backendProcess, &QProcess::errorOccurred, this, [this](QProcess::ProcessError error) {
+            if (error != QProcess::FailedToStart || !m_backendProcess) return;
+            m_status->setText(QStringLiteral("Não consegui iniciar pkexec; instale o polkit deste sistema"));
+            m_backendProcess->deleteLater();
+            m_backendProcess = nullptr;
+            m_installBackendButton->show();
+        });
+        m_status->setText(QStringLiteral("Pedindo autorização para instalar dependências"));
+        m_backendProcess->start(QStringLiteral("pkexec"), {QStringLiteral("pacman"), QStringLiteral("-S"),
+            QStringLiteral("--needed"), QStringLiteral("--noconfirm"), QStringLiteral("cmake"),
+            QStringLiteral("extra-cmake-modules"), QStringLiteral("kwin"), QStringLiteral("qt6-base"),
+            QStringLiteral("kconfig"), QStringLiteral("vulkan-headers")});
     }
 
     void readConfig()
@@ -527,6 +587,10 @@ private:
     QLabel *m_status = nullptr;
     QPushButton *m_installBackendButton = nullptr;
     QString m_backend;
+    QString m_backendSource;
+    QString m_backendBuild;
+    QProcess *m_backendProcess = nullptr;
+    int m_backendStage = 0;
     QTimer m_timer;
     std::vector<Control> m_controls;
 };
