@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(ajuste-video VERSION 0.1.3 LANGUAGES CXX)
+project(ajuste-video VERSION 0.1.4 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(QT_MAJOR_VERSION 6)
 include(GNUInstallDirs)
 
-option(BUILD_KWIN_EFFECT "Build the KWin compositor effect" ON)
+option(BUILD_KWIN_EFFECT "Build the legacy native KWin compositor effect" OFF)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets DBus)
 
 if(BUILD_KWIN_EFFECT)

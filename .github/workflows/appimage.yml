@@ -26,6 +26,10 @@ jobs:
           DESTDIR="$PWD/AppDir" cmake --install build
           test -f AppDir/usr/share/ajuste-video/source/main.cpp
           test -f AppDir/usr/share/ajuste-video/source/effect.cpp
+          test -f AppDir/usr/share/ajuste-video/backends/kwin/metadata.json
+          test -f AppDir/usr/share/ajuste-video/backends/kwin/contents/code/main.js
+          test -f AppDir/usr/share/ajuste-video/backends/kwin/contents/config/main.xml
+          test -f AppDir/usr/share/ajuste-video/backends/kwin/contents/shaders/adjust_core.frag
           mkdir -p AppDir/usr/share/metainfo
       - name: Download linuxdeploy
         run: |

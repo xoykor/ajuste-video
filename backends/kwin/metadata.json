@@ -1,0 +1,16 @@
+{
+  "KPackageStructure": "KWin/Effect",
+  "KPlugin": {
+    "Id": "ajustevideo-app",
+    "Name": "Ajuste de vídeo",
+    "Description": "Ajustes globais de imagem controlados pelo Ajuste de vídeo.",
+    "Category": "Appearance",
+    "EnabledByDefault": false,
+    "License": "GPL-3.0-or-later",
+    "Version": "0.1.4",
+    "Website": "https://github.com/xoykor/ajuste-video"
+  },
+  "X-KDE-Ordering": 99,
+  "X-Plasma-API": "javascript",
+  "X-Plasma-MainScript": "code/main.js"
+}

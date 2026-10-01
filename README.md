@@ -2,11 +2,9 @@
 
 Aplicativo gráfico de ajustes globais de imagem para Linux. Oferece brilho, contraste, gamma, saturação, matiz e temperatura de cor com limites seguros.
 
-O repositório indicado (`xoykor/ajuste-video`) não contém arquivos ainda. Esta pasta é a primeira implementação local do projeto.
-
 ## Ambientes compatíveis
 
-- **KDE Plasma/Wayland:** todos os controles são aplicados pelo efeito do KWin. O AppImage é executável diretamente; se faltar o backend, o botão **Instalar suporte** dentro do próprio aplicativo compila o efeito para o KWin local e solicita autorização para instalar dependências e plugin.
+- **KDE Plasma/Wayland:** todos os controles são aplicados pelo efeito do KWin, inclusive em janelas de aplicativos em tela cheia. O AppImage inclui o efeito JavaScript e o ativa na pasta de dados do usuário pelo botão **Ativar / atualizar KWin**. Não chama `sudo`, `pkexec`, `pacman`, nem precisa compilar o plugin na máquina. Conteúdo protegido por DRM pode não receber o efeito.
 - **GNOME:** todos os controles são aplicados por uma extensão Clutter/Cogl incluída. Use **Instalar suporte** no aplicativo e reabra a sessão.
 - **Cinnamon:** todos os controles são aplicados por uma extensão Clutter/Cogl incluída. Use **Instalar suporte** e reabra a sessão.
 - **XFCE/X11:** brilho e gamma são aplicados por `xrandr` e duram até a sessão terminar. O XFCE/Wayland não tem backend de compositor implementado.
@@ -21,11 +19,11 @@ No terminal, entre nesta pasta e execute:
 ./install-cachyos.sh
 ```
 
-O instalador compila o efeito do KWin e a interface Qt, instala os arquivos no sistema e habilita o efeito. Depois, encerre a sessão Plasma e entre novamente. Abra **Ajuste de vídeo** pelo menu de aplicativos.
+O script compila e instala a interface em `~/.local`. Abra **Ajuste de vídeo** pelo menu e use **Ativar / atualizar KWin** uma vez. O efeito fica em `~/.local/share/kwin/effects/`; não instala pacotes nem grava arquivos em `/usr`.
 
 ## AppImage
 
-Tags `v*` no GitHub geram uma release com `ajuste-video-x86_64.AppImage`. O AppImage inclui a interface, os backends GNOME/Cinnamon e o código-fonte usado para compilar o efeito do KWin localmente, caso necessário. O fluxo de instalação do backend fica dentro do aplicativo.
+Tags `v*` no GitHub geram uma release com `ajuste-video-x86_64.AppImage`. O arquivo inclui a interface e todos os backends. No KDE, o AppImage copia e ativa o efeito dentro dos dados do usuário; não requer instalador auxiliar, gerenciador de pacotes, senha de administrador ou compilação no computador.
 
 Para gerar localmente, instale as dependências do build e `linuxdeploy-x86_64.AppImage`, depois execute `packaging/build-appimage.sh` com `LINUXDEPLOY=/caminho/para/linuxdeploy`.
 
@@ -42,16 +40,15 @@ O efeito também limita esses valores internamente, inclusive se `kwinrc` for ed
 
 Os ajustes e predefinições são salvos em `kwinrc` e aplicados ao mover os controles. O botão **Restaurar padrão** desativa o efeito e devolve a imagem original.
 
-## Dependências para compilar manualmente
+## Compilar e instalar no usuário atual
 
 ```bash
-sudo pacman -S --needed base-devel cmake extra-cmake-modules kwin qt6-base kconfig
-cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/usr
+cmake -S . -B build -DBUILD_KWIN_EFFECT=OFF -DCMAKE_INSTALL_PREFIX="$HOME/.local"
 cmake --build build -j"$(nproc)"
-sudo cmake --install build
+cmake --install build
 ```
 
-O processamento acontece no KWin. A sessão precisa estar em Plasma 6 com composição OpenGL.
+São necessárias as dependências de desenvolvimento do Qt 6 para compilar a interface. O processamento global acontece dentro do KWin e requer Plasma 6 com composição OpenGL; o AppImage instala esse efeito apenas nos dados do usuário.
 
 ## Licença
 
