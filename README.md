@@ -21,7 +21,7 @@ cd ajuste-video
 ./install-cachyos.sh
 ```
 
-O instalador compila o código-fonte e instala a interface em `~/.local`; as dependências de compilação que faltarem são instaladas pelo `pacman`. No KDE, o efeito é carregado na sessão atual e fica pronto ao abrir o aplicativo. A senha de administrador é usada somente para instalar dependências do sistema; o aplicativo e o efeito ficam nos dados do usuário.
+O instalador compila o código-fonte e instala a aplicação e o efeito nativo do KWin; as dependências de compilação que faltarem são instaladas pelo `pacman`. No KDE, o efeito nativo é registrado no KWin e fica pronto ao abrir o aplicativo.
 
 Para instalar sem clonar manualmente, o script também pode ser executado diretamente do branch `main`:
 
@@ -37,7 +37,7 @@ cd ajuste-video
 ./uninstall-cachyos.sh
 ```
 
-O desinstalador não usa `sudo` e preserva seus ajustes em `~/.config/ajuste-video/`.
+O desinstalador preserva seus ajustes em `~/.config/ajuste-video/`.
 
 ## Controles
 
@@ -55,12 +55,12 @@ Os controles e predefinições mostram uma prévia ao vivo. Mover um controle at
 ## Compilar manualmente
 
 ```bash
-cmake -S . -B build -DBUILD_KWIN_EFFECT=OFF -DCMAKE_INSTALL_PREFIX="$HOME/.local"
+cmake -S . -B build -DBUILD_KWIN_EFFECT=ON -DCMAKE_INSTALL_PREFIX=/usr
 cmake --build build -j"$(nproc)"
-cmake --install build
+sudo cmake --install build
 ```
 
-São necessárias as dependências de desenvolvimento do Qt 6 para compilar a interface. Para instalar a interface e o efeito KWin, use `./install-cachyos.sh`. O processamento global requer Plasma 6 com composição OpenGL.
+São necessárias as dependências de desenvolvimento do Qt 6 e KWin (ECM, KF6Config, KWin) para compilar a interface e o efeito. Para instalar tudo automaticamente, use `./install-cachyos.sh`. O processamento global requer Plasma 6 com composição OpenGL.
 
 ## Licença
 

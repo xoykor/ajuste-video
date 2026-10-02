@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(QT_MAJOR_VERSION 6)
 include(GNUInstallDirs)
 
-option(BUILD_KWIN_EFFECT "Build the legacy native KWin compositor effect" OFF)
+option(BUILD_KWIN_EFFECT "Build the native KWin compositor effect" ON)
 find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets DBus)
 
 if(BUILD_KWIN_EFFECT)

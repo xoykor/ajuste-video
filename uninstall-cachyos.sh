@@ -65,4 +65,12 @@ rm -rf -- \
     "${data_dir}/cinnamon/extensions/${extension_id}" \
     "${XDG_CACHE_HOME:-${HOME}/.cache}/ajuste-video"
 
+if [[ -f /usr/bin/ajuste-video || -f /usr/lib/qt6/plugins/kwin/effects/plugins/ajustevideo.so ]]; then
+    sudo rm -f -- \
+        "/usr/bin/ajuste-video" \
+        "/usr/share/applications/ajuste-video.desktop" \
+        "/usr/share/icons/hicolor/scalable/apps/ajuste-video.svg" \
+        "/usr/lib/qt6/plugins/kwin/effects/plugins/ajustevideo.so"
+fi
+
 echo "Ajuste de vídeo removido. As preferências em ${config_dir}/ajuste-video/ foram preservadas."

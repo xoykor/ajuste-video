@@ -22,12 +22,6 @@ public:
     bool isActive() const override;
     void reconfigure(ReconfigureFlags flags) override;
     int requestedEffectChainPosition() const override;
-    void drawWindow(const RenderTarget &renderTarget,
-                    const RenderViewport &viewport,
-                    EffectWindow *window,
-                    int mask,
-                    const Region &region,
-                    WindowPaintData &data) override;
 
 private Q_SLOTS:
     void attachWindow(KWin::EffectWindow *window);
@@ -36,6 +30,7 @@ private Q_SLOTS:
 private:
     void readSettings();
     void updateWindows();
+    void updateShaderUniforms();
     void loadShader();
 
     bool m_enabled = false;
@@ -49,3 +44,4 @@ private:
     std::unique_ptr<GLShader> m_shader;
 };
 }
+

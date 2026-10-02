@@ -28,7 +28,7 @@ vec3 rotateHueYiq(vec3 c, float angle)
 
 void main()
 {
-    vec4 color = texture2D(sampler, texcoord0);
+    vec4 color = texture(sampler, texcoord0);
     color = sourceEncodingToNitsInDestinationColorspace(color);
     float alpha = max(color.a, 0.001);
 

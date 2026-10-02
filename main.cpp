@@ -359,7 +359,7 @@ private:
 
     void writeKWinSettings(QSettings &config, const QString &prefix, const QJsonObject &settings) const
     {
-        config.beginGroup(QStringLiteral("Effect-ajustevideo-app"));
+        config.beginGroup(QStringLiteral("Effect-ajustevideo"));
         config.setValue(prefix + QStringLiteral("Enabled"), settings.value(QStringLiteral("enabled")).toBool());
         const std::array<QString, 6> jsonKeys{{QStringLiteral("brightness"), QStringLiteral("contrast"),
             QStringLiteral("gamma"), QStringLiteral("saturation"), QStringLiteral("hue"), QStringLiteral("temperature")}};
@@ -376,7 +376,7 @@ private:
         QSettings config(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
                              + QStringLiteral("/kwinrc"), QSettings::IniFormat);
         writeKWinSettings(config, QStringLiteral("Preview"), settingsObject());
-        config.beginGroup(QStringLiteral("Effect-ajustevideo-app"));
+        config.beginGroup(QStringLiteral("Effect-ajustevideo"));
         config.setValue(QStringLiteral("PreviewActive"), true);
         config.setValue(QStringLiteral("PreviewTimestamp"), QDateTime::currentMSecsSinceEpoch());
         config.endGroup();
@@ -388,7 +388,7 @@ private:
     {
         QSettings config(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
                              + QStringLiteral("/kwinrc"), QSettings::IniFormat);
-        config.beginGroup(QStringLiteral("Effect-ajustevideo-app"));
+        config.beginGroup(QStringLiteral("Effect-ajustevideo"));
         if (config.value(QStringLiteral("PreviewActive"), false).toBool())
             config.setValue(QStringLiteral("PreviewTimestamp"), QDateTime::currentMSecsSinceEpoch());
         config.endGroup();
@@ -401,7 +401,7 @@ private:
         QDBusMessage message = QDBusMessage::createMethodCall(
             QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
             QStringLiteral("org.kde.kwin.Effects"), QStringLiteral("reconfigureEffect"));
-        message << QStringLiteral("ajustevideo-app");
+        message << QStringLiteral("ajustevideo");
         const QDBusMessage reply = QDBusConnection::sessionBus().call(message, QDBus::Block, 500);
         return reply.type() != QDBusMessage::ErrorMessage;
     }
@@ -411,6 +411,10 @@ private:
         removePreviewConfig();
         QSettings config(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
                              + QStringLiteral("/kwinrc"), QSettings::IniFormat);
+        config.beginGroup(QStringLiteral("Effect-ajustevideo"));
+        config.setValue(QStringLiteral("PreviewActive"), false);
+        config.setValue(QStringLiteral("PreviewTimestamp"), 0);
+        config.endGroup();
         config.beginGroup(QStringLiteral("Effect-ajustevideo-app"));
         config.setValue(QStringLiteral("PreviewActive"), false);
         config.setValue(QStringLiteral("PreviewTimestamp"), 0);
@@ -432,7 +436,7 @@ private:
 
         QSettings config(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
                              + QStringLiteral("/kwinrc"), QSettings::IniFormat);
-        config.beginGroup(QStringLiteral("Effect-ajustevideo-app"));
+        config.beginGroup(QStringLiteral("Effect-ajustevideo"));
         const bool active = config.value(QStringLiteral("PreviewActive"), false).toBool();
         const qint64 updated = config.value(QStringLiteral("PreviewTimestamp"), 0).toLongLong();
         if (active && (updated <= 0 || now - updated > 2000)) {
@@ -505,7 +509,8 @@ private:
                                  + QStringLiteral("/kwinrc"), QSettings::IniFormat);
             writeKWinSettings(config, QString(), current);
             config.beginGroup(QStringLiteral("Plugins"));
-            config.setValue(QStringLiteral("ajustevideo-appEnabled"), true);
+            config.setValue(QStringLiteral("ajustevideoEnabled"), true);
+            config.setValue(QStringLiteral("ajustevideo-appEnabled"), false);
             config.endGroup();
             config.sync();
         }
@@ -531,8 +536,19 @@ private:
             return QFileInfo::exists(data + QStringLiteral("/gnome-shell/extensions/ajuste-video@xoykor/extension.js"));
         if (m_backend == QStringLiteral("cinnamon"))
             return QFileInfo::exists(data + QStringLiteral("/cinnamon/extensions/ajuste-video@xoykor/extension.js"));
-        if (m_backend == QStringLiteral("kde"))
-            return QFileInfo::exists(data + QStringLiteral("/kwin/effects/ajustevideo-app/contents/code/main.js"));
+        if (m_backend == QStringLiteral("kde")) {
+            if (QFileInfo::exists(QStringLiteral("/usr/lib/qt6/plugins/kwin/effects/plugins/ajustevideo.so")))
+                return true;
+            QDBusMessage query = QDBusMessage::createMethodCall(
+                QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+                QStringLiteral("org.kde.kwin.Effects"), QStringLiteral("listOfEffects"));
+            const QDBusMessage reply = QDBusConnection::sessionBus().call(query, QDBus::Block, 1000);
+            if (reply.type() != QDBusMessage::ErrorMessage && !reply.arguments().isEmpty()) {
+                const QStringList effectsList = reply.arguments().constFirst().toStringList();
+                if (effectsList.contains(QStringLiteral("ajustevideo"))) return true;
+            }
+            return false;
+        }
         return false;
     }
 
@@ -580,7 +596,7 @@ private:
         QDBusMessage query = QDBusMessage::createMethodCall(
             QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
             QStringLiteral("org.kde.kwin.Effects"), QStringLiteral("isEffectLoaded"));
-        query << QStringLiteral("ajustevideo-app");
+        query << QStringLiteral("ajustevideo");
         const QDBusMessage reply = QDBusConnection::sessionBus().call(query, QDBus::Block, 1000);
         return reply.type() != QDBusMessage::ErrorMessage && !reply.arguments().isEmpty()
             && reply.arguments().constFirst().toBool();
@@ -593,7 +609,7 @@ private:
         QDBusMessage load = QDBusMessage::createMethodCall(
             QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
             QStringLiteral("org.kde.kwin.Effects"), QStringLiteral("loadEffect"));
-        load << QStringLiteral("ajustevideo-app");
+        load << QStringLiteral("ajustevideo");
         const QDBusMessage reply = QDBusConnection::sessionBus().call(load, QDBus::Block, 3000);
         return reply.type() != QDBusMessage::ErrorMessage && !reply.arguments().isEmpty()
             && reply.arguments().constFirst().toBool() && kwinEffectLoaded();
@@ -648,9 +664,8 @@ private:
         if (shared.open(QIODevice::ReadOnly)) json = QJsonDocument::fromJson(shared.readAll()).object();
         QSettings kwinConfig(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
                                  + QStringLiteral("/kwinrc"), QSettings::IniFormat);
-        const QString effectGroup = m_backend == QStringLiteral("kde")
-            ? QStringLiteral("Effect-ajustevideo-app") : QStringLiteral("Effect-ajustevideo");
-        const QString legacyGroup = QStringLiteral("Effect-ajustevideo");
+        const QString effectGroup = QStringLiteral("Effect-ajustevideo");
+        const QString legacyGroup = QStringLiteral("Effect-ajustevideo-app");
         const auto savedValue = [&kwinConfig, &effectGroup, &legacyGroup](const QString &key, const QVariant &fallback) {
             const QString currentKey = effectGroup + QLatin1Char('/') + key;
             if (kwinConfig.contains(currentKey)) return kwinConfig.value(currentKey);

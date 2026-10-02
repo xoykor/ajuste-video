@@ -22,7 +22,7 @@ if [[ ! -f "${script_dir}/CMakeLists.txt" ]]; then
     needs_checkout=true
 fi
 
-packages=(cmake qt6-base kconfig qt6-tools python)
+packages=(cmake qt6-base kconfig qt6-tools python extra-cmake-modules kwin vulkan-headers)
 if [[ "${needs_checkout}" == true ]]; then
     packages+=(git)
 fi
@@ -70,29 +70,29 @@ for command in cmake c++ make python3; do
     fi
 done
 
-install_prefix="${HOME}/.local"
-build_dir="$(mktemp -d "${TMPDIR:-/tmp}/ajuste-video-build.XXXXXX")"
-cmake -S "${script_dir}" -B "${build_dir}" \
-    -DBUILD_KWIN_EFFECT=OFF -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="${install_prefix}"
-cmake --build "${build_dir}" --parallel "$(nproc)"
-cmake --install "${build_dir}"
-
 desktop_env="${XDG_CURRENT_DESKTOP:-}:${DESKTOP_SESSION:-}"
 desktop_env="${desktop_env,,}"
+is_kde=false
 if [[ "${desktop_env}" == *kde* || "${desktop_env}" == *plasma* ]]; then
+    is_kde=true
+fi
+
+install_prefix="/usr"
+build_dir="$(mktemp -d "${TMPDIR:-/tmp}/ajuste-video-build.XXXXXX")"
+cmake -S "${script_dir}" -B "${build_dir}" \
+    -DBUILD_KWIN_EFFECT=ON -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="${install_prefix}"
+cmake --build "${build_dir}" --parallel "$(nproc)"
+sudo cmake --install "${build_dir}"
+
+if [[ "${is_kde}" == true ]]; then
     if ! command -v kwriteconfig6 >/dev/null 2>&1; then
         echo "Comando necessário não encontrado: kwriteconfig6. Instale o pacote kconfig." >&2
         exit 1
     fi
-    backend_source="${install_prefix}/share/ajuste-video/backends/kwin"
-    effect_dir="${HOME}/.local/share/kwin/effects/ajustevideo-app"
-    if [[ ! -f "${backend_source}/metadata.json" ]]; then
-        echo "O pacote não contém os arquivos do efeito KWin." >&2
-        exit 1
-    fi
-    mkdir -p "${effect_dir}"
-    cp -a "${backend_source}/." "${effect_dir}/"
+
+    # Clean up legacy scripted effect if previously installed
+    rm -rf -- "${HOME}/.local/share/kwin/effects/ajustevideo-app"
 
     mapfile -t effect_settings < <(python3 - "${HOME}/.config/ajuste-video/settings.json" \
         "${HOME}/.config/kwinrc" <<'PY'
@@ -110,15 +110,15 @@ except (OSError, json.JSONDecodeError):
 
 config = configparser.ConfigParser(interpolation=None)
 config.read(kwinrc_path, encoding="utf-8")
-new_group = "Effect-ajustevideo-app"
-legacy_group = "Effect-ajustevideo"
+effect_group = "Effect-ajustevideo"
+legacy_group = "Effect-ajustevideo-app"
 
 def old_value(group, key, fallback):
     return config.get(group, key, fallback=fallback)
 
 enabled = settings.get("enabled")
 if enabled is None:
-    enabled = old_value(new_group, "Enabled", old_value(legacy_group, "Enabled", "false"))
+    enabled = old_value(effect_group, "Enabled", old_value(legacy_group, "Enabled", "false"))
 if isinstance(enabled, bool):
     enabled = "true" if enabled else "false"
 else:
@@ -136,7 +136,7 @@ controls = [
 for json_key, config_key, default, minimum, maximum in controls:
     raw = settings.get(json_key)
     if raw is None:
-        raw = old_value(new_group, config_key, old_value(legacy_group, config_key, str(default)))
+        raw = old_value(effect_group, config_key, old_value(legacy_group, config_key, str(default)))
     try:
         value = float(raw)
     except (TypeError, ValueError):
@@ -151,24 +151,25 @@ PY
     kwinrc="${HOME}/.config/kwinrc"
     keys=(Enabled Brightness Contrast Gamma Saturation Hue ColorTemperature)
     for index in "${!keys[@]}"; do
-        kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo-app \
+        kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo \
             --key "${keys[index]}" -- "${effect_settings[index]}"
     done
-    kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo-app --key PreviewActive false
-    kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo-app --key PreviewTimestamp 0
-    legacy_plugin="/usr/lib/qt6/plugins/kwin/effects/plugins/ajustevideo.so"
-    if [[ -e "${legacy_plugin}" ]]; then
-        kwriteconfig6 --file "${kwinrc}" --group Plugins --key ajustevideoEnabled false
-        kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo --key Enabled false
-    fi
+    kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo --key PreviewActive false
+    kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo --key PreviewTimestamp 0
+    kwriteconfig6 --file "${kwinrc}" --group Plugins --key ajustevideoEnabled true
+    kwriteconfig6 --file "${kwinrc}" --group Plugins --key ajustevideo-appEnabled false
+    kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo-app --key Enabled false
 
     if command -v qdbus6 >/dev/null 2>&1 && \
-       qdbus6 org.kde.KWin /Effects org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1 && \
-       [[ "$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded ajustevideo-app)" == true ]]; then
-        qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect ajustevideo-app
+       qdbus6 org.kde.KWin /Effects org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1; then
+        if [[ "$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded ajustevideo-app)" == true ]]; then
+            qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect ajustevideo-app >/dev/null 2>&1 || true
+        fi
+        qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect ajustevideo >/dev/null 2>&1 || \
+            qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect ajustevideo >/dev/null 2>&1 || true
     fi
 
-    echo "Ajuste de vídeo instalado em ${install_prefix}; o KWin será ativado ao iniciar uma prévia no aplicativo."
+    echo "Ajuste de vídeo instalado com sucesso no sistema (efeito KWin ajustevideo ativado)."
 else
     echo "Ajuste de vídeo instalado em ${install_prefix}. Abra o aplicativo para ativar o suporte deste ambiente."
 fi
