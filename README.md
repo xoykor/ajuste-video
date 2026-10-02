@@ -4,7 +4,7 @@ Aplicativo gráfico de ajustes globais de imagem para Linux. Oferece brilho, con
 
 ## Ambientes compatíveis
 
-- **KDE Plasma/Wayland:** todos os controles são aplicados pelo efeito do KWin, inclusive em janelas de aplicativos em tela cheia. O instalador `.sh` compila a interface e carrega o efeito na sessão atual. Conteúdo protegido por DRM pode não receber o efeito.
+- **KDE Plasma/Wayland:** todos os controles são aplicados pelo efeito do KWin, inclusive em janelas de aplicativos em tela cheia. O instalador `.sh` compila a interface e instala o efeito; o aplicativo carrega o efeito quando você move um controle para iniciar a prévia. Conteúdo protegido por DRM pode não receber o efeito.
 - **GNOME:** todos os controles são aplicados por uma extensão Clutter/Cogl incluída. Use **Instalar suporte** no aplicativo e reabra a sessão.
 - **Cinnamon:** todos os controles são aplicados por uma extensão Clutter/Cogl incluída. Use **Instalar suporte** e reabra a sessão.
 - **XFCE/X11:** brilho e gamma são aplicados por `xrandr` e duram até a sessão terminar. O XFCE/Wayland não tem backend de compositor implementado.
@@ -60,7 +60,7 @@ cmake --build build -j"$(nproc)"
 cmake --install build
 ```
 
-São necessárias as dependências de desenvolvimento do Qt 6 para compilar a interface. Para instalar e carregar o efeito KWin junto com a interface, use `./install-cachyos.sh`. O processamento global requer Plasma 6 com composição OpenGL.
+São necessárias as dependências de desenvolvimento do Qt 6 para compilar a interface. Para instalar a interface e o efeito KWin, use `./install-cachyos.sh`. O processamento global requer Plasma 6 com composição OpenGL.
 
 ## Licença
 

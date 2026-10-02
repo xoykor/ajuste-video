@@ -152,37 +152,23 @@ PY
     keys=(Enabled Brightness Contrast Gamma Saturation Hue ColorTemperature)
     for index in "${!keys[@]}"; do
         kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo-app \
-            --key "${keys[index]}" "${effect_settings[index]}"
+            --key "${keys[index]}" -- "${effect_settings[index]}"
     done
     kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo-app --key PreviewActive false
     kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo-app --key PreviewTimestamp 0
-    kwriteconfig6 --file "${kwinrc}" --group Plugins --key ajustevideo-appEnabled true
-
     legacy_plugin="/usr/lib/qt6/plugins/kwin/effects/plugins/ajustevideo.so"
     if [[ -e "${legacy_plugin}" ]]; then
         kwriteconfig6 --file "${kwinrc}" --group Plugins --key ajustevideoEnabled false
         kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo --key Enabled false
     fi
 
-    if ! command -v qdbus6 >/dev/null 2>&1; then
-        echo "Não encontrei qdbus6 para carregar o efeito nesta sessão." >&2
-        exit 1
-    fi
-    if ! qdbus6 org.kde.KWin /Effects org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1; then
-        echo "O KWin não está acessível nesta sessão. Os arquivos foram instalados; entre no Plasma e execute o instalador novamente." >&2
-        exit 1
-    fi
-    if [[ "$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded ajustevideo-app)" == true ]]; then
+    if command -v qdbus6 >/dev/null 2>&1 && \
+       qdbus6 org.kde.KWin /Effects org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1 && \
+       [[ "$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded ajustevideo-app)" == true ]]; then
         qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect ajustevideo-app
     fi
-    loaded="$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect ajustevideo-app)"
-    if [[ "${loaded}" != true ]] || \
-       [[ "$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded ajustevideo-app)" != true ]]; then
-        echo "O KWin recusou o efeito. Consulte: journalctl --user -b -u plasma-kwin_wayland.service" >&2
-        exit 1
-    fi
 
-    echo "Ajuste de vídeo instalado em ${install_prefix}; efeito KWin carregado nesta sessão."
+    echo "Ajuste de vídeo instalado em ${install_prefix}; o KWin será ativado ao iniciar uma prévia no aplicativo."
 else
     echo "Ajuste de vídeo instalado em ${install_prefix}. Abra o aplicativo para ativar o suporte deste ambiente."
 fi

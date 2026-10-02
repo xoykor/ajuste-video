@@ -4,6 +4,10 @@ const shaderId = effect.addFragmentShader(Effect.MapTexture | Effect.Modulate, "
 let attachedWindows = [];
 let isEnabled = false;
 
+if (!shaderId) {
+    throw new Error("Não foi possível carregar o shader de ajuste de vídeo");
+}
+
 function setting(name, fallback, minimum, maximum, prefix) {
     const value = Number(effect.readConfig(prefix + name, fallback));
     if (!Number.isFinite(value)) {
@@ -25,9 +29,9 @@ function applyToWindow(window) {
         window: window,
         duration: 1,
         type: Effect.Shader,
-        shader: shaderId,
+        fragmentShader: shaderId,
         to: 1.0,
-        keepAlive: true
+        keepAlive: false
     });
     attachedWindows.push({window: window, animationId: animationId});
 }

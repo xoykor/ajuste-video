@@ -552,9 +552,9 @@ private:
         if (m_backend == QStringLiteral("kde")) {
             m_status->setText(!platformBackendInstalled()
                 ? QStringLiteral("Suporte KWin ausente · execute o instalador do projeto")
-                : ensureKWinEffectLoaded()
-                    ? QStringLiteral("KDE · ajustes prontos para prévia ao vivo")
-                    : QStringLiteral("Falha ao carregar o efeito KWin nesta sessão"));
+                : kwinEffectLoaded()
+                    ? QStringLiteral("KDE · efeito ativo")
+                    : QStringLiteral("KDE · o efeito será carregado ao iniciar a prévia"));
         } else if (m_backend == QStringLiteral("gnome") || m_backend == QStringLiteral("cinnamon")) {
             m_status->setText(platformBackendInstalled() ? QStringLiteral("Backend instalado · ajustes ao vivo")
                                                          : QStringLiteral("Instale o backend para ativar os ajustes"));
