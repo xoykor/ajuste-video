@@ -154,7 +154,7 @@ private:
         controls->setSpacing(2);
         const std::array<Control, 6> definitions{{
             {QStringLiteral("Brightness"), QStringLiteral("Brilho"), QStringLiteral("Ajusta a intensidade geral da imagem."), -200, 200, 0, QStringLiteral("%")},
-            {QStringLiteral("Contrast"), QStringLiteral("Contraste"), QStringLiteral("Expande ou comprime a diferença entre claros e escuros."), 800, 1200, 1000, QStringLiteral("%")},
+            {QStringLiteral("Contrast"), QStringLiteral("Contraste"), QStringLiteral("Expande ou comprime a diferença entre claros e escuros."), 200, 1200, 1000, QStringLiteral("%")},
             {QStringLiteral("Gamma"), QStringLiteral("Gamma"), QStringLiteral("Ajusta os meios-tons sem alterar o ponto branco."), 500, 1500, 1000, QString()},
             {QStringLiteral("Saturation"), QStringLiteral("Saturação"), QStringLiteral("Controla a intensidade das cores."), 750, 1250, 1000, QStringLiteral("%")},
             {QStringLiteral("Hue"), QStringLiteral("Matiz"), QStringLiteral("Gira as cores no círculo cromático."), -300, 300, 0, QStringLiteral("°")},
