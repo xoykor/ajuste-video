@@ -127,7 +127,7 @@ print(enabled)
 
 controls = [
     ("brightness", "Brightness", 0.0, -0.20, 0.20),
-    ("contrast", "Contrast", 1.0, 0.80, 1.20),
+    ("contrast", "Contrast", 1.0, 0.20, 1.20),
     ("gamma", "Gamma", 1.0, 0.50, 1.50),
     ("saturation", "Saturation", 1.0, 0.75, 1.25),
     ("hue", "Hue", 0.0, -30.0, 30.0),
