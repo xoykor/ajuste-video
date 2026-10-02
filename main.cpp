@@ -153,12 +153,12 @@ private:
         controls->setContentsMargins(18, 16, 18, 14);
         controls->setSpacing(2);
         const std::array<Control, 6> definitions{{
-            {QStringLiteral("Brightness"), QStringLiteral("Brilho"), QStringLiteral("Ajusta a intensidade geral da imagem."), -20, 20, 0, QStringLiteral("%")},
-            {QStringLiteral("Contrast"), QStringLiteral("Contraste"), QStringLiteral("Expande ou comprime a diferença entre claros e escuros."), 80, 120, 100, QStringLiteral("%")},
-            {QStringLiteral("Gamma"), QStringLiteral("Gamma"), QStringLiteral("Ajusta os meios-tons sem alterar o ponto branco."), 80, 120, 100, QString()},
-            {QStringLiteral("Saturation"), QStringLiteral("Saturação"), QStringLiteral("Controla a intensidade das cores."), 75, 125, 100, QStringLiteral("%")},
-            {QStringLiteral("Hue"), QStringLiteral("Matiz"), QStringLiteral("Gira as cores no círculo cromático."), -30, 30, 0, QStringLiteral("°")},
-            {QStringLiteral("ColorTemperature"), QStringLiteral("Temperatura"), QStringLiteral("Move o balanço de cores entre frio e quente."), -25, 25, 0, QStringLiteral("%")},
+            {QStringLiteral("Brightness"), QStringLiteral("Brilho"), QStringLiteral("Ajusta a intensidade geral da imagem."), -200, 200, 0, QStringLiteral("%")},
+            {QStringLiteral("Contrast"), QStringLiteral("Contraste"), QStringLiteral("Expande ou comprime a diferença entre claros e escuros."), 800, 1200, 1000, QStringLiteral("%")},
+            {QStringLiteral("Gamma"), QStringLiteral("Gamma"), QStringLiteral("Ajusta os meios-tons sem alterar o ponto branco."), 800, 1200, 1000, QString()},
+            {QStringLiteral("Saturation"), QStringLiteral("Saturação"), QStringLiteral("Controla a intensidade das cores."), 750, 1250, 1000, QStringLiteral("%")},
+            {QStringLiteral("Hue"), QStringLiteral("Matiz"), QStringLiteral("Gira as cores no círculo cromático."), -300, 300, 0, QStringLiteral("°")},
+            {QStringLiteral("ColorTemperature"), QStringLiteral("Temperatura"), QStringLiteral("Move o balanço de cores entre frio e quente."), -250, 250, 0, QStringLiteral("%")},
         }};
         m_controls.reserve(definitions.size());
         for (const Control &definition : definitions) {
@@ -266,6 +266,8 @@ private:
         control.valueLabel->setAlignment(Qt::AlignCenter);
         control.slider = new QSlider(Qt::Horizontal);
         control.slider->setRange(control.low, control.high);
+        control.slider->setSingleStep(1);
+        control.slider->setPageStep(10);
         control.slider->setValue(control.value);
         row->addWidget(name, 0, 0);
         row->addWidget(control.valueLabel, 0, 1, Qt::AlignRight);
@@ -284,8 +286,8 @@ private:
 
     QString displayValue(const Control &control, int value) const
     {
-        if (control.key == QStringLiteral("Gamma")) return QString::number(value / 100.0, 'f', 2);
-        return QString::number(value) + control.suffix;
+        if (control.key == QStringLiteral("Gamma")) return QString::number(value / 1000.0, 'f', 2);
+        return QString::number(value / 10.0, 'f', 1) + control.suffix;
     }
 
     QString currentDesktop() const
@@ -315,12 +317,12 @@ private:
     {
         QJsonObject json;
         json.insert(QStringLiteral("enabled"), m_enabled->isChecked());
-        json.insert(QStringLiteral("brightness"), m_controls[0].value / 100.0);
-        json.insert(QStringLiteral("contrast"), m_controls[1].value / 100.0);
-        json.insert(QStringLiteral("gamma"), m_controls[2].value / 100.0);
-        json.insert(QStringLiteral("saturation"), m_controls[3].value / 100.0);
-        json.insert(QStringLiteral("hue"), m_controls[4].value);
-        json.insert(QStringLiteral("temperature"), m_controls[5].value / 100.0);
+        json.insert(QStringLiteral("brightness"), m_controls[0].value / 1000.0);
+        json.insert(QStringLiteral("contrast"), m_controls[1].value / 1000.0);
+        json.insert(QStringLiteral("gamma"), m_controls[2].value / 1000.0);
+        json.insert(QStringLiteral("saturation"), m_controls[3].value / 1000.0);
+        json.insert(QStringLiteral("hue"), m_controls[4].value / 10.0);
+        json.insert(QStringLiteral("temperature"), m_controls[5].value / 1000.0);
         return json;
     }
 
@@ -469,7 +471,7 @@ private:
         for (Control &control : m_controls) {
             const QString key = control.key == QStringLiteral("ColorTemperature")
                 ? QStringLiteral("temperature") : control.key.toLower();
-            const double factor = control.key == QStringLiteral("Hue") ? 1.0 : 100.0;
+            const double factor = control.key == QStringLiteral("Hue") ? 10.0 : 1000.0;
             control.value = qRound(m_savedSettings.value(key).toDouble() * factor);
             control.value = std::clamp(control.value, control.low, control.high);
             const QSignalBlocker sliderBlocker(control.slider);
@@ -675,7 +677,7 @@ private:
         m_enabled->setChecked(json.value(QStringLiteral("enabled")).toBool(savedValue(QStringLiteral("Enabled"), false).toBool()));
         for (Control &control : m_controls) {
             const double neutral = control.key == QStringLiteral("Contrast") || control.key == QStringLiteral("Gamma") || control.key == QStringLiteral("Saturation") ? 1.0 : 0.0;
-            const double factor = control.key == QStringLiteral("Hue") ? 1.0 : 100.0;
+            const double factor = control.key == QStringLiteral("Hue") ? 10.0 : 1000.0;
             const QString jsonKey = control.key == QStringLiteral("ColorTemperature") ? QStringLiteral("temperature") : control.key.toLower();
             const double stored = json.contains(jsonKey) ? json.value(jsonKey).toDouble()
                                                          : savedValue(control.key, neutral).toDouble();
@@ -690,10 +692,10 @@ private:
 
     void applyPreset(const QString &name)
     {
-        std::array<int, 6> values{0, 100, 100, 100, 0, 0};
-        if (name == QStringLiteral("vivid")) values = {0, 105, 100, 125, 0, 0};
-        else if (name == QStringLiteral("cinema")) values = {-3, 108, 95, 112, 0, 0};
-        else if (name == QStringLiteral("warm")) values = {0, 100, 100, 105, 0, 20};
+        std::array<int, 6> values{0, 1000, 1000, 1000, 0, 0};
+        if (name == QStringLiteral("vivid")) values = {0, 1050, 1000, 1250, 0, 0};
+        else if (name == QStringLiteral("cinema")) values = {-30, 1080, 950, 1120, 0, 0};
+        else if (name == QStringLiteral("warm")) values = {0, 1000, 1000, 1050, 0, 200};
         m_timer.stop();
         for (size_t i = 0; i < m_controls.size(); ++i) m_controls[i].slider->setValue(values[i]);
         if (name == QStringLiteral("default")) m_enabled->setChecked(false);
@@ -789,8 +791,8 @@ private:
             m_status->setText(QStringLiteral("Nenhuma tela conectada foi encontrada"));
             return;
         }
-        const double brightness = 1.0 + (m_enabled->isChecked() ? m_controls[0].value / 100.0 : 0.0);
-        const double gamma = m_enabled->isChecked() ? m_controls[2].value / 100.0 : 1.0;
+        const double brightness = 1.0 + (m_enabled->isChecked() ? m_controls[0].value / 1000.0 : 0.0);
+        const double gamma = m_enabled->isChecked() ? m_controls[2].value / 1000.0 : 1.0;
         const QString level = QString::number(brightness, 'f', 2);
         const QString gammaLevel = QString::number(gamma, 'f', 2);
         for (const QString &display : displays) {
