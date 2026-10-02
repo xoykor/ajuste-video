@@ -1,7 +1,2 @@
-AppDir/
 build/
-build-appimage/
-linuxdeploy
-linuxdeploy-plugin-qt-x86_64.AppImage
-*.AppImage
 *.tar.gz

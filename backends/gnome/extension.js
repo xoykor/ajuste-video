@@ -5,6 +5,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 const EFFECT_NAME = 'ajuste-video-color';
 const CONFIG = GLib.build_filenamev([GLib.get_user_config_dir(), 'ajuste-video', 'settings.json']);
+const PREVIEW_CONFIG = GLib.build_filenamev([GLib.get_user_runtime_dir(), 'ajuste-video', 'preview.json']);
 
 const SHADER = `
 uniform float u_brightness;
@@ -44,8 +45,18 @@ export default class AjusteVideoExtension extends Extension {
 
     _readConfig() {
         try {
-            const [, bytes] = Gio.File.new_for_path(CONFIG).load_contents(null);
-            const settings = JSON.parse(new TextDecoder().decode(bytes));
+            let settings = null;
+            try {
+                const [, previewBytes] = Gio.File.new_for_path(PREVIEW_CONFIG).load_contents(null);
+                const preview = JSON.parse(new TextDecoder().decode(previewBytes));
+                const previewAge = Date.now() - preview.updatedAtMs;
+                if (Number.isFinite(preview.updatedAtMs) && previewAge >= 0 && previewAge < 3000)
+                    settings = preview;
+            } catch (_) {}
+            if (!settings) {
+                const [, bytes] = Gio.File.new_for_path(CONFIG).load_contents(null);
+                settings = JSON.parse(new TextDecoder().decode(bytes));
+            }
             const enabled = settings.enabled === true;
             this._effect.enabled = enabled;
             const uniforms = {

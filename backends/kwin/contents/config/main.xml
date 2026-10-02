@@ -12,5 +12,14 @@
     <entry name="Saturation" type="Double"><default>1.0</default></entry>
     <entry name="Hue" type="Double"><default>0.0</default></entry>
     <entry name="ColorTemperature" type="Double"><default>0.0</default></entry>
+    <entry name="PreviewActive" type="Bool"><default>false</default></entry>
+    <entry name="PreviewTimestamp" type="Double"><default>0</default></entry>
+    <entry name="PreviewEnabled" type="Bool"><default>false</default></entry>
+    <entry name="PreviewBrightness" type="Double"><default>0.0</default></entry>
+    <entry name="PreviewContrast" type="Double"><default>1.0</default></entry>
+    <entry name="PreviewGamma" type="Double"><default>1.0</default></entry>
+    <entry name="PreviewSaturation" type="Double"><default>1.0</default></entry>
+    <entry name="PreviewHue" type="Double"><default>0.0</default></entry>
+    <entry name="PreviewColorTemperature" type="Double"><default>0.0</default></entry>
   </group>
 </kcfg>

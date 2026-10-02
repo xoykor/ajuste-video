@@ -4,8 +4,8 @@ const shaderId = effect.addFragmentShader(Effect.MapTexture, "adjust.frag");
 let attachedWindows = [];
 let isEnabled = false;
 
-function setting(name, fallback, minimum, maximum) {
-    const value = Number(effect.readConfig(name, fallback));
+function setting(name, fallback, minimum, maximum, prefix) {
+    const value = Number(effect.readConfig(prefix + name, fallback));
     if (!Number.isFinite(value)) {
         return fallback;
     }
@@ -32,13 +32,18 @@ function applyToWindow(window) {
 }
 
 function updateSettings() {
-    isEnabled = effect.readConfig("Enabled", false);
-    effect.setUniform(shaderId, "brightness", isEnabled ? setting("Brightness", 0.0, -0.20, 0.20) : 0.0);
-    effect.setUniform(shaderId, "contrast", isEnabled ? setting("Contrast", 1.0, 0.80, 1.20) : 1.0);
-    effect.setUniform(shaderId, "gamma", isEnabled ? setting("Gamma", 1.0, 0.80, 1.20) : 1.0);
-    effect.setUniform(shaderId, "saturation", isEnabled ? setting("Saturation", 1.0, 0.75, 1.25) : 1.0);
-    effect.setUniform(shaderId, "hue", isEnabled ? setting("Hue", 0.0, -30.0, 30.0) * Math.PI / 180.0 : 0.0);
-    effect.setUniform(shaderId, "temperature", isEnabled ? setting("ColorTemperature", 0.0, -0.25, 0.25) : 0.0);
+    const previewTimestamp = Number(effect.readConfig("PreviewTimestamp", 0));
+    const previewAge = Date.now() - previewTimestamp;
+    const usePreview = effect.readConfig("PreviewActive", false)
+        && Number.isFinite(previewTimestamp) && previewAge >= 0 && previewAge < 2000;
+    const prefix = usePreview ? "Preview" : "";
+    isEnabled = effect.readConfig(prefix + "Enabled", false) === true;
+    effect.setUniform(shaderId, "brightness", isEnabled ? setting("Brightness", 0.0, -0.20, 0.20, prefix) : 0.0);
+    effect.setUniform(shaderId, "contrast", isEnabled ? setting("Contrast", 1.0, 0.80, 1.20, prefix) : 1.0);
+    effect.setUniform(shaderId, "gamma", isEnabled ? setting("Gamma", 1.0, 0.80, 1.20, prefix) : 1.0);
+    effect.setUniform(shaderId, "saturation", isEnabled ? setting("Saturation", 1.0, 0.75, 1.25, prefix) : 1.0);
+    effect.setUniform(shaderId, "hue", isEnabled ? setting("Hue", 0.0, -30.0, 30.0, prefix) * Math.PI / 180.0 : 0.0);
+    effect.setUniform(shaderId, "temperature", isEnabled ? setting("ColorTemperature", 0.0, -0.25, 0.25, prefix) : 0.0);
 
     if (isEnabled) {
         for (const window of effects.stackingOrder) {

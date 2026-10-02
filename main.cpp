@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include <QApplication>
+#include <QAbstractButton>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCloseEvent>
+#include <QDateTime>
+#include <QDBusVariant>
 #include <QDBusConnection>
 #include <QDBusMessage>
 #include <QDir>
@@ -13,6 +17,7 @@
 #include <QIcon>
 #include <QLabel>
 #include <QMouseEvent>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QProcess>
 #include <QJsonDocument>
@@ -21,6 +26,7 @@
 #include <QSaveFile>
 #include <QSettings>
 #include <QScrollArea>
+#include <QSessionManager>
 #include <QSignalBlocker>
 #include <QSlider>
 #include <QStandardPaths>
@@ -71,10 +77,19 @@ public:
         buildUi();
         m_backend = currentDesktop();
         readConfig();
+        m_savedSettings = settingsObject();
         configureBackendControls();
+        recoverStalePreview();
         m_timer.setSingleShot(true);
         m_timer.setInterval(110);
         connect(&m_timer, &QTimer::timeout, this, [this] { apply(); });
+        m_previewHeartbeat.setInterval(1000);
+        connect(&m_previewHeartbeat, &QTimer::timeout, this, [this] {
+            if (!hasUnsavedChanges()) return;
+            if (m_backend == QStringLiteral("kde")) refreshKWinPreviewTimestamp();
+            else writePreviewConfig();
+        });
+        m_previewHeartbeat.start();
     }
 
 private:
@@ -179,14 +194,27 @@ private:
         m_installBackendButton = new QPushButton(QStringLiteral("Ativar no KWin"));
         m_installBackendButton->setObjectName(QStringLiteral("installBackend"));
         auto *footerActions = new QHBoxLayout();
-        footerActions->addStretch();
         footerActions->addWidget(m_installBackendButton);
         footerActions->addWidget(reset);
+        footerActions->addStretch();
+        auto *saveActions = new QHBoxLayout();
+        saveActions->addStretch();
+        m_discardButton = new QPushButton(QStringLiteral("Descartar prévia"));
+        m_discardButton->setObjectName(QStringLiteral("discard"));
+        m_discardButton->setEnabled(false);
+        m_saveButton = new QPushButton(QStringLiteral("Salvar ajustes"));
+        m_saveButton->setObjectName(QStringLiteral("save"));
+        m_saveButton->setEnabled(false);
+        saveActions->addWidget(m_discardButton);
+        saveActions->addWidget(m_saveButton);
         footer->addWidget(m_status);
         footer->addLayout(footerActions);
+        footer->addLayout(saveActions);
         outer->addLayout(footer);
         connect(reset, &QPushButton::clicked, this, [this] { applyPreset(QStringLiteral("default")); });
         connect(m_installBackendButton, &QPushButton::clicked, this, [this] { installBackendFiles(); });
+        connect(m_discardButton, &QPushButton::clicked, this, [this] { discardChanges(); });
+        connect(m_saveButton, &QPushButton::clicked, this, [this] { saveChanges(); });
 
         setStyleSheet(QStringLiteral(R"(
             QWidget#window { background: #10151c; color: #edf2f7; font-family: "Noto Sans", sans-serif; }
@@ -210,6 +238,8 @@ private:
             QComboBox { background: #202a35; border: 1px solid #364453; padding: 8px 12px; border-radius: 8px; min-width: 150px; }
             QPushButton { background: #202a35; border: 1px solid #364453; padding: 8px 10px; border-radius: 8px; color: #dce5ec; }
             QPushButton:hover { background: #293744; border-color: #0fc5a3; }
+            QPushButton#save { background: #0b826f; border-color: #0fc5a3; color: #ffffff; font-weight: 700; }
+            QPushButton#save:disabled, QPushButton#discard:disabled { color: #62707e; border-color: #29333e; }
             QLabel#status { color: #6fd8bd; font-size: 11px; }
         )"));
     }
@@ -304,6 +334,196 @@ private:
         return file.commit();
     }
 
+    QString previewConfigPath() const
+    {
+        return QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation)
+            + QStringLiteral("/ajuste-video/preview.json");
+    }
+
+    bool writePreviewConfig() const
+    {
+        const QString path = previewConfigPath();
+        if (!QDir().mkpath(QFileInfo(path).absolutePath())) return false;
+        QJsonObject preview = settingsObject();
+        preview.insert(QStringLiteral("updatedAtMs"), QDateTime::currentMSecsSinceEpoch());
+        QSaveFile file(path);
+        if (!file.open(QIODevice::WriteOnly)) return false;
+        file.write(QJsonDocument(preview).toJson(QJsonDocument::Compact));
+        return file.commit();
+    }
+
+    void removePreviewConfig() const
+    {
+        QFile::remove(previewConfigPath());
+    }
+
+    void writeKWinSettings(QSettings &config, const QString &prefix, const QJsonObject &settings) const
+    {
+        config.beginGroup(QStringLiteral("Effect-ajustevideo-app"));
+        config.setValue(prefix + QStringLiteral("Enabled"), settings.value(QStringLiteral("enabled")).toBool());
+        const std::array<QString, 6> jsonKeys{{QStringLiteral("brightness"), QStringLiteral("contrast"),
+            QStringLiteral("gamma"), QStringLiteral("saturation"), QStringLiteral("hue"), QStringLiteral("temperature")}};
+        const std::array<QString, 6> configKeys{{QStringLiteral("Brightness"), QStringLiteral("Contrast"),
+            QStringLiteral("Gamma"), QStringLiteral("Saturation"), QStringLiteral("Hue"), QStringLiteral("ColorTemperature")}};
+        for (size_t i = 0; i < jsonKeys.size(); ++i) {
+            config.setValue(prefix + configKeys[i], settings.value(jsonKeys[i]).toDouble());
+        }
+        config.endGroup();
+    }
+
+    bool applyKWinPreview()
+    {
+        QSettings config(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
+                             + QStringLiteral("/kwinrc"), QSettings::IniFormat);
+        writeKWinSettings(config, QStringLiteral("Preview"), settingsObject());
+        config.beginGroup(QStringLiteral("Effect-ajustevideo-app"));
+        config.setValue(QStringLiteral("PreviewActive"), true);
+        config.setValue(QStringLiteral("PreviewTimestamp"), QDateTime::currentMSecsSinceEpoch());
+        config.endGroup();
+        config.sync();
+        return config.status() == QSettings::NoError;
+    }
+
+    void refreshKWinPreviewTimestamp()
+    {
+        QSettings config(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
+                             + QStringLiteral("/kwinrc"), QSettings::IniFormat);
+        config.beginGroup(QStringLiteral("Effect-ajustevideo-app"));
+        if (config.value(QStringLiteral("PreviewActive"), false).toBool())
+            config.setValue(QStringLiteral("PreviewTimestamp"), QDateTime::currentMSecsSinceEpoch());
+        config.endGroup();
+        config.sync();
+    }
+
+    bool reconfigureKWinEffect() const
+    {
+        if (!activeKWinEffects().contains(QStringLiteral("ajustevideo-app"))) return false;
+        QDBusMessage message = QDBusMessage::createMethodCall(
+            QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+            QStringLiteral("org.kde.kwin.Effects"), QStringLiteral("reconfigureEffect"));
+        message << QStringLiteral("ajustevideo-app");
+        const QDBusMessage reply = QDBusConnection::sessionBus().call(message, QDBus::Block, 500);
+        return reply.type() != QDBusMessage::ErrorMessage;
+    }
+
+    void clearPreview(bool updateKWin) const
+    {
+        removePreviewConfig();
+        QSettings config(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
+                             + QStringLiteral("/kwinrc"), QSettings::IniFormat);
+        config.beginGroup(QStringLiteral("Effect-ajustevideo-app"));
+        config.setValue(QStringLiteral("PreviewActive"), false);
+        config.setValue(QStringLiteral("PreviewTimestamp"), 0);
+        config.endGroup();
+        config.sync();
+        if (updateKWin && m_backend == QStringLiteral("kde")) reconfigureKWinEffect();
+    }
+
+    void recoverStalePreview()
+    {
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        QFile previewFile(previewConfigPath());
+        if (previewFile.open(QIODevice::ReadOnly)) {
+            const QJsonObject preview = QJsonDocument::fromJson(previewFile.readAll()).object();
+            const qint64 updated = preview.value(QStringLiteral("updatedAtMs")).toVariant().toLongLong();
+            if (updated <= 0 || now - updated > 3000) removePreviewConfig();
+        }
+        if (m_backend != QStringLiteral("kde")) return;
+
+        QSettings config(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
+                             + QStringLiteral("/kwinrc"), QSettings::IniFormat);
+        config.beginGroup(QStringLiteral("Effect-ajustevideo-app"));
+        const bool active = config.value(QStringLiteral("PreviewActive"), false).toBool();
+        const qint64 updated = config.value(QStringLiteral("PreviewTimestamp"), 0).toLongLong();
+        if (active && (updated <= 0 || now - updated > 2000)) {
+            config.setValue(QStringLiteral("PreviewActive"), false);
+            config.setValue(QStringLiteral("PreviewTimestamp"), 0);
+            config.endGroup();
+            config.sync();
+            reconfigureKWinEffect();
+            return;
+        }
+        config.endGroup();
+    }
+
+    bool hasUnsavedChanges() const
+    {
+        return settingsObject() != m_savedSettings;
+    }
+
+    void updateActionButtons()
+    {
+        const bool dirty = hasUnsavedChanges();
+        m_saveButton->setEnabled(dirty);
+        m_discardButton->setEnabled(dirty);
+    }
+
+    void restoreSavedSettings()
+    {
+        const QSignalBlocker enabledBlocker(m_enabled);
+        m_enabled->setChecked(m_savedSettings.value(QStringLiteral("enabled")).toBool());
+        for (Control &control : m_controls) {
+            const QString key = control.key == QStringLiteral("ColorTemperature")
+                ? QStringLiteral("temperature") : control.key.toLower();
+            const double factor = control.key == QStringLiteral("Hue") ? 1.0 : 100.0;
+            control.value = qRound(m_savedSettings.value(key).toDouble() * factor);
+            control.value = std::clamp(control.value, control.low, control.high);
+            const QSignalBlocker sliderBlocker(control.slider);
+            control.slider->setValue(control.value);
+            control.valueLabel->setText(displayValue(control, control.value));
+        }
+        m_presets->setCurrentIndex(0);
+    }
+
+    void discardChanges()
+    {
+        m_timer.stop();
+        restoreSavedSettings();
+        clearPreview(true);
+        if (m_backend == QStringLiteral("xfce") && !waylandSession()) applyXrandr();
+        updateActionButtons();
+        m_status->setText(QStringLiteral("Prévia descartada · último perfil salvo restaurado"));
+    }
+
+    void saveChanges()
+    {
+        if (!hasUnsavedChanges()) return;
+        QMessageBox confirmation(QMessageBox::Question, QStringLiteral("Salvar ajustes"),
+            QStringLiteral("Salvar estes valores como seu perfil permanente?"),
+            QMessageBox::Save | QMessageBox::Cancel, this);
+        confirmation.button(QMessageBox::Save)->setText(QStringLiteral("Salvar"));
+        confirmation.button(QMessageBox::Cancel)->setText(QStringLiteral("Continuar editando"));
+        if (confirmation.exec() != QMessageBox::Save) return;
+
+        const QJsonObject current = settingsObject();
+        if (!saveSharedConfig()) {
+            m_status->setText(QStringLiteral("Não consegui salvar os ajustes"));
+            return;
+        }
+        if (m_backend == QStringLiteral("kde")) {
+            QSettings config(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
+                                 + QStringLiteral("/kwinrc"), QSettings::IniFormat);
+            writeKWinSettings(config, QString(), current);
+            config.beginGroup(QStringLiteral("Plugins"));
+            config.setValue(QStringLiteral("ajustevideo-appEnabled"), true);
+            config.endGroup();
+            config.sync();
+        }
+        m_savedSettings = current;
+        clearPreview(m_backend == QStringLiteral("kde"));
+        updateActionButtons();
+        m_status->setText(QStringLiteral("Ajustes salvos e confirmados"));
+    }
+
+protected:
+    void closeEvent(QCloseEvent *event) override
+    {
+        if (hasUnsavedChanges()) discardChanges();
+        QWidget::closeEvent(event);
+    }
+
+private:
+
     bool platformBackendInstalled() const
     {
         const QString data = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
@@ -329,12 +549,13 @@ private:
         const bool hasInstaller = m_backend == QStringLiteral("gnome") || m_backend == QStringLiteral("cinnamon")
             || m_backend == QStringLiteral("kde");
         m_installBackendButton->setText(m_backend == QStringLiteral("kde")
-            ? QStringLiteral("Ativar no KWin") : QStringLiteral("Instalar suporte"));
+            ? QStringLiteral("Preparar suporte KWin") : QStringLiteral("Instalar suporte"));
         m_installBackendButton->setVisible(hasInstaller
             && (!platformBackendInstalled() || m_backend == QStringLiteral("kde")));
         if (m_backend == QStringLiteral("kde")) {
-            m_installBackendButton->setText(QStringLiteral("Ativar / atualizar KWin"));
-            m_status->setText(QStringLiteral("KDE · ajustes globais processados pelo KWin"));
+            m_status->setText(activeKWinEffects().contains(QStringLiteral("ajustevideo-app"))
+                ? QStringLiteral("KDE · efeito KWin carregado; ajustes globais ao vivo")
+                : QStringLiteral("KDE · prepare o suporte e reinicie a sessão para carregar o efeito"));
         } else if (m_backend == QStringLiteral("gnome") || m_backend == QStringLiteral("cinnamon")) {
             m_status->setText(platformBackendInstalled() ? QStringLiteral("Backend instalado · ajustes ao vivo")
                                                          : QStringLiteral("Instale o backend para ativar os ajustes"));
@@ -352,9 +573,21 @@ private:
 
     QString bundledDataDir() const
     {
-        const QString appDir = qEnvironmentVariable("APPDIR");
-        if (!appDir.isEmpty()) return appDir + QStringLiteral("/usr/share/ajuste-video");
         return QCoreApplication::applicationDirPath() + QStringLiteral("/../share/ajuste-video");
+    }
+
+    QStringList activeKWinEffects() const
+    {
+        QDBusMessage query = QDBusMessage::createMethodCall(
+            QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
+            QStringLiteral("org.freedesktop.DBus.Properties"), QStringLiteral("Get"));
+        query << QStringLiteral("org.kde.kwin.Effects") << QStringLiteral("activeEffects");
+        const QDBusMessage reply = QDBusConnection::sessionBus().call(query, QDBus::Block, 1000);
+        if (reply.type() == QDBusMessage::ErrorMessage || reply.arguments().isEmpty()) return {};
+
+        QVariant value = reply.arguments().constFirst();
+        if (value.canConvert<QDBusVariant>()) value = value.value<QDBusVariant>().variant();
+        return value.toStringList();
     }
 
     void installBackendFiles()
@@ -375,7 +608,7 @@ private:
                 const QString to = destination + QLatin1Char('/') + name;
                 if (!QFileInfo::exists(from) || !QDir().mkpath(QFileInfo(to).absolutePath())
                     || (QFile::exists(to) && !QFile::remove(to)) || !QFile::copy(from, to)) {
-                    m_status->setText(QStringLiteral("Não consegui ativar o efeito KWin pelo AppImage"));
+                    m_status->setText(QStringLiteral("Não consegui instalar os arquivos do efeito KWin"));
                     m_status->setToolTip(QStringLiteral("Falha ao copiar: ") + from + QStringLiteral(" → ") + to);
                     return;
                 }
@@ -383,39 +616,11 @@ private:
 
             QSettings kwinConfig(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
                                      + QStringLiteral("/kwinrc"), QSettings::IniFormat);
-            const QStringList keys{QStringLiteral("Brightness"), QStringLiteral("Contrast"), QStringLiteral("Gamma"),
-                                   QStringLiteral("Saturation"), QStringLiteral("Hue"), QStringLiteral("ColorTemperature")};
-            kwinConfig.beginGroup(QStringLiteral("Effect-ajustevideo-app"));
-            kwinConfig.setValue(QStringLiteral("Enabled"), m_enabled->isChecked());
-            for (size_t i = 0; i < m_controls.size(); ++i) {
-                const Control &control = m_controls[i];
-                kwinConfig.setValue(keys.at(static_cast<qsizetype>(i)),
-                    control.key == QStringLiteral("Hue") ? control.value : control.value / 100.0);
-            }
-            kwinConfig.endGroup();
             kwinConfig.beginGroup(QStringLiteral("Plugins"));
             kwinConfig.setValue(QStringLiteral("ajustevideo-appEnabled"), true);
             kwinConfig.endGroup();
             kwinConfig.sync();
 
-            QDBusMessage refreshKWin = QDBusMessage::createMethodCall(
-                QStringLiteral("org.kde.KWin"), QStringLiteral("/KWin"),
-                QStringLiteral("org.kde.KWin"), QStringLiteral("reconfigure"));
-            QDBusConnection::sessionBus().call(refreshKWin, QDBus::Block, 1000);
-
-            QDBusMessage loadEffect = QDBusMessage::createMethodCall(
-                QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
-                QStringLiteral("org.kde.kwin.Effects"), QStringLiteral("loadEffect"));
-            loadEffect << QStringLiteral("ajustevideo-app");
-            const QDBusMessage reply = QDBusConnection::sessionBus().call(loadEffect, QDBus::Block, 3000);
-            if (reply.type() == QDBusMessage::ErrorMessage || reply.arguments().isEmpty()
-                || !reply.arguments().first().toBool()) {
-                m_status->setText(QStringLiteral("O KWin recusou o efeito · detalhes no tooltip"));
-                m_status->setToolTip(reply.errorMessage().isEmpty()
-                    ? QStringLiteral("Confira o log do KWin com: journalctl --user -b | grep -i ajustevideo")
-                    : reply.errorMessage());
-                return;
-            }
             if (QFileInfo::exists(QStringLiteral("/usr/lib/qt6/plugins/kwin/effects/plugins/ajustevideo.so"))) {
                 kwinConfig.beginGroup(QStringLiteral("Plugins"));
                 kwinConfig.setValue(QStringLiteral("ajustevideoEnabled"), false);
@@ -424,16 +629,12 @@ private:
                 kwinConfig.setValue(QStringLiteral("Enabled"), false);
                 kwinConfig.endGroup();
                 kwinConfig.sync();
-                QDBusConnection::sessionBus().call(refreshKWin, QDBus::Block, 1000);
             }
-            QDBusMessage reconfigure = QDBusMessage::createMethodCall(
-                QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
-                QStringLiteral("org.kde.kwin.Effects"), QStringLiteral("reconfigureEffect"));
-            reconfigure << QStringLiteral("ajustevideo-app");
-            QDBusConnection::sessionBus().call(reconfigure, QDBus::Block, 1000);
-            m_status->setText(QStringLiteral("Ajuste de vídeo ativado no KWin pelo AppImage"));
-            m_status->setToolTip(QStringLiteral("O efeito fica nos dados do seu usuário; não instalou pacotes do sistema."));
-            m_installBackendButton->hide();
+
+            m_status->setText(activeKWinEffects().contains(QStringLiteral("ajustevideo-app"))
+                ? QStringLiteral("Suporte KWin atualizado; os arquivos novos entram após reiniciar a sessão")
+                : QStringLiteral("Suporte KWin preparado; encerre e reabra a sessão para carregar o efeito"));
+            m_status->setToolTip(QStringLiteral("A instalação não reinicia nem reconfigura o compositor atual."));
             return;
         }
         const QString id = QStringLiteral("ajuste-video@xoykor");
@@ -522,52 +723,82 @@ private:
         apply();
     }
 
-    void scheduleApply() { m_timer.start(); }
+    void scheduleApply()
+    {
+        updateActionButtons();
+        m_timer.start();
+    }
 
     void apply()
     {
-        if (!saveSharedConfig()) {
-            m_status->setText(QStringLiteral("Não consegui salvar os ajustes"));
+        const bool kwin = m_backend == QStringLiteral("kde");
+        const bool effectLoaded = kwin && activeKWinEffects().contains(QStringLiteral("ajustevideo-app"));
+        if (kwin && m_enabled->isChecked() && !effectLoaded) {
+            const QSignalBlocker blocker(m_enabled);
+            m_enabled->setChecked(false);
+            updateActionButtons();
+            m_status->setText(QStringLiteral("O KWin ainda não carregou o efeito. Reinicie a sessão antes de ativar os ajustes."));
+            m_status->setToolTip(QStringLiteral("Use Preparar suporte KWin e encerre/reabra a sessão. Nenhum ajuste visual foi ativado."));
+            return;
+        }
+
+        if (!hasUnsavedChanges()) {
+            clearPreview(kwin);
+            if (m_backend == QStringLiteral("xfce") && !waylandSession()) applyXrandr();
+            else m_status->setText(QStringLiteral("Último perfil salvo restaurado"));
+            updateActionButtons();
             return;
         }
 
         if (m_backend == QStringLiteral("xfce")) {
             if (waylandSession()) {
                 m_status->setText(QStringLiteral("XFCE/Wayland · backend de cor indisponível neste compositor"));
+                updateActionButtons();
                 return;
             }
             applyXrandr();
+            if (hasUnsavedChanges()) m_status->setText(QStringLiteral("Prévia ao vivo · ainda não salva"));
+            updateActionButtons();
             return;
         }
 
         if (m_backend == QStringLiteral("gnome") || m_backend == QStringLiteral("cinnamon")) {
-            m_status->setText(platformBackendInstalled()
-                                  ? (m_enabled->isChecked() ? QStringLiteral("Ajustes aplicados ao desktop") : QStringLiteral("Ajustes desativados"))
-                                  : QStringLiteral("Instale o suporte do ambiente para ativar os ajustes"));
+            if (!platformBackendInstalled()) {
+                m_status->setText(QStringLiteral("Instale o suporte do ambiente para ativar a prévia"));
+                updateActionButtons();
+                return;
+            }
+            if (!writePreviewConfig()) {
+                m_status->setText(QStringLiteral("Não consegui criar o arquivo temporário da prévia"));
+                updateActionButtons();
+                return;
+            }
+            m_status->setText(QStringLiteral("Prévia ao vivo · ainda não salva"));
+            updateActionButtons();
             return;
         }
 
-        QSettings kwinConfig(QStandardPaths::writableLocation(QStandardPaths::ConfigLocation)
-                                 + QStringLiteral("/kwinrc"), QSettings::IniFormat);
-        const QString effectGroup = m_backend == QStringLiteral("kde")
-            ? QStringLiteral("Effect-ajustevideo-app") : QStringLiteral("Effect-ajustevideo");
-        kwinConfig.beginGroup(effectGroup);
-        kwinConfig.setValue(QStringLiteral("Enabled"), m_enabled->isChecked());
-        for (const Control &control : m_controls) {
-            double value = control.key == QStringLiteral("Hue") ? control.value : control.value / 100.0;
-            kwinConfig.setValue(control.key, value);
+        if (kwin) {
+            if (!effectLoaded) {
+                m_status->setText(QStringLiteral("Suporte KWin não carregado · reinicie a sessão para pré-visualizar"));
+                updateActionButtons();
+                return;
+            }
+            if (!applyKWinPreview()) {
+                m_status->setText(QStringLiteral("Não consegui preparar a prévia temporária no KWin"));
+                updateActionButtons();
+                return;
+            }
+            if (!reconfigureKWinEffect()) {
+                m_status->setText(QStringLiteral("KWin não aplicou a prévia · confira se o efeito continua carregado"));
+                updateActionButtons();
+                return;
+            }
+            m_status->setText(QStringLiteral("Prévia ao vivo · ainda não salva"));
+            updateActionButtons();
+            return;
         }
-        kwinConfig.endGroup();
-        kwinConfig.sync();
-
-        QDBusMessage message = QDBusMessage::createMethodCall(
-            QStringLiteral("org.kde.KWin"), QStringLiteral("/Effects"),
-            QStringLiteral("org.kde.kwin.Effects"), QStringLiteral("reconfigureEffect"));
-        message << QStringLiteral("ajustevideo-app");
-        const auto reply = QDBusConnection::sessionBus().call(message, QDBus::Block, 500);
-        m_status->setText(reply.type() == QDBusMessage::ErrorMessage
-                              ? QStringLiteral("KWin não respondeu · confira se o efeito foi instalado")
-                              : (m_enabled->isChecked() ? QStringLiteral("Ajustes aplicados ao desktop") : QStringLiteral("Ajustes desativados")));
+        updateActionButtons();
     }
 
     void applyXrandr()
@@ -610,8 +841,12 @@ private:
     QComboBox *m_presets = nullptr;
     QLabel *m_status = nullptr;
     QPushButton *m_installBackendButton = nullptr;
+    QPushButton *m_discardButton = nullptr;
+    QPushButton *m_saveButton = nullptr;
     QString m_backend;
+    QJsonObject m_savedSettings;
     QTimer m_timer;
+    QTimer m_previewHeartbeat;
     std::vector<Control> m_controls;
 };
 
@@ -621,6 +856,8 @@ int main(int argc, char **argv)
     QApplication::setApplicationName(QStringLiteral("ajuste-video"));
     QApplication::setOrganizationName(QStringLiteral("xoykor"));
     VideoAdjustWindow window;
+    QObject::connect(&app, &QGuiApplication::commitDataRequest, &window,
+        [&window](QSessionManager &) { window.close(); });
     window.show();
     return app.exec();
 }

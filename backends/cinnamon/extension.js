@@ -2,6 +2,7 @@ const {Clutter, Gio, GLib} = imports.gi;
 
 const EFFECT_NAME = 'ajuste-video-color';
 const CONFIG = GLib.build_filenamev([GLib.get_user_config_dir(), 'ajuste-video', 'settings.json']);
+const PREVIEW_CONFIG = GLib.build_filenamev([GLib.get_user_runtime_dir(), 'ajuste-video', 'preview.json']);
 const SHADER = `uniform float u_brightness; uniform float u_contrast; uniform float u_gamma;
 uniform float u_saturation; uniform float u_hue; uniform float u_temperature;
 void main() {
@@ -31,8 +32,18 @@ function enable() {
 
 function _readConfig() {
     try {
-        const [, bytes] = Gio.File.new_for_path(CONFIG).load_contents(null);
-        const settings = JSON.parse(imports.byteArray.toString(bytes));
+        let settings = null;
+        try {
+            const [, previewBytes] = Gio.File.new_for_path(PREVIEW_CONFIG).load_contents(null);
+            const preview = JSON.parse(imports.byteArray.toString(previewBytes));
+            const previewAge = Date.now() - preview.updatedAtMs;
+            if (Number.isFinite(preview.updatedAtMs) && previewAge >= 0 && previewAge < 3000)
+                settings = preview;
+        } catch (_) {}
+        if (!settings) {
+            const [, bytes] = Gio.File.new_for_path(CONFIG).load_contents(null);
+            settings = JSON.parse(imports.byteArray.toString(bytes));
+        }
         this._effect.enabled = settings.enabled === true;
         const clamp = (v, lo, hi, fallback) => Math.max(lo, Math.min(hi, Number(v) || fallback));
         const uniforms = {
