@@ -49,7 +49,7 @@ function _readConfig() {
         const uniforms = {
             u_brightness: clamp(settings.brightness, -0.20, 0.20, 0),
             u_contrast: clamp(settings.contrast, 0.80, 1.20, 1),
-            u_gamma: clamp(settings.gamma, 0.80, 1.20, 1),
+            u_gamma: clamp(settings.gamma, 0.50, 1.50, 1),
             u_saturation: clamp(settings.saturation, 0.75, 1.25, 1),
             u_hue: clamp(settings.hue, -30, 30, 0) * Math.PI / 180,
             u_temperature: clamp(settings.temperature, -0.25, 0.25, 0),
