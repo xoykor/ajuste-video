@@ -40,18 +40,23 @@ if ((${#missing_packages[@]})); then
 fi
 
 checkout_dir=""
+build_dir=""
+cleanup() {
+    if [[ -n "${build_dir}" && -d "${build_dir}" ]]; then
+        rm -rf -- "${build_dir}"
+    fi
+    if [[ -n "${checkout_dir}" && -d "${checkout_dir}" ]]; then
+        rm -rf -- "${checkout_dir}"
+    fi
+}
+trap cleanup EXIT
+
 if [[ "${needs_checkout}" == true ]]; then
     if ! command -v git >/dev/null 2>&1; then
         echo "Não encontrei git para baixar o código-fonte." >&2
         exit 1
     fi
     checkout_dir="$(mktemp -d "${TMPDIR:-/tmp}/ajuste-video.XXXXXX")"
-    cleanup() {
-        if [[ -n "${checkout_dir}" && -d "${checkout_dir}" ]]; then
-            rm -rf -- "${checkout_dir}"
-        fi
-    }
-    trap cleanup EXIT
     source_ref="${AJUSTE_VIDEO_VERSION:-main}"
     git clone --depth 1 --branch "${source_ref}" \
         https://github.com/xoykor/ajuste-video.git "${checkout_dir}/source"
@@ -66,7 +71,7 @@ for command in cmake c++ make python3; do
 done
 
 install_prefix="${HOME}/.local"
-build_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/ajuste-video/build"
+build_dir="$(mktemp -d "${TMPDIR:-/tmp}/ajuste-video-build.XXXXXX")"
 cmake -S "${script_dir}" -B "${build_dir}" \
     -DBUILD_KWIN_EFFECT=OFF -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="${install_prefix}"
