@@ -62,7 +62,7 @@ export default class AjusteVideoExtension extends Extension {
             const uniforms = {
                 u_brightness: Math.max(-0.20, Math.min(0.20, Number(settings.brightness) || 0)),
                 u_contrast: Math.max(0.80, Math.min(1.20, Number(settings.contrast) || 1)),
-                u_gamma: Math.max(0.80, Math.min(1.20, Number(settings.gamma) || 1)),
+                u_gamma: Math.max(0.50, Math.min(1.50, Number(settings.gamma) || 1)),
                 u_saturation: Math.max(0.75, Math.min(1.25, Number(settings.saturation) || 1)),
                 u_hue: Math.max(-30, Math.min(30, Number(settings.hue) || 0)) * Math.PI / 180,
                 u_temperature: Math.max(-0.25, Math.min(0.25, Number(settings.temperature) || 0)),
