@@ -21,18 +21,20 @@ cd ajuste-video
 ./install-cachyos.sh
 ```
 
-O instalador instala as dependências de compilação que faltarem pelo `pacman`, compila a interface em `~/.local` e prepara o efeito em `~/.local/share/kwin/effects/`. No KDE, encerre e reabra a sessão uma vez após instalar para o KWin carregar o efeito. A senha de administrador é usada somente para instalar dependências do sistema; o aplicativo e o efeito ficam nos dados do usuário.
+O instalador compila o código-fonte e instala a interface em `~/.local`; as dependências de compilação que faltarem são instaladas pelo `pacman`. No KDE, encerre e reabra a sessão uma vez após instalar para o KWin carregar o efeito. A senha de administrador é usada somente para instalar dependências do sistema; o aplicativo e o efeito ficam nos dados do usuário.
 
-Também é possível executar o instalador da [release mais recente](https://github.com/xoykor/ajuste-video/releases/latest) diretamente:
+Para instalar sem clonar manualmente, o script também pode ser executado diretamente do branch `main`:
 
 ```bash
-curl -fsSL https://github.com/xoykor/ajuste-video/releases/latest/download/install-cachyos.sh | bash
+curl -fsSL https://raw.githubusercontent.com/xoykor/ajuste-video/main/install-cachyos.sh | bash
 ```
 
-Ele baixa o código-fonte da mesma versão antes de compilar. Para remover o aplicativo e os backends instalados, execute:
+Para remover o aplicativo e os backends, clone o repositório e rode o desinstalador:
 
 ```bash
-curl -fsSL https://github.com/xoykor/ajuste-video/releases/latest/download/uninstall-cachyos.sh | bash
+git clone https://github.com/xoykor/ajuste-video.git
+cd ajuste-video
+./uninstall-cachyos.sh
 ```
 
 O desinstalador não usa `sudo` e preserva seus ajustes em `~/.config/ajuste-video/`.

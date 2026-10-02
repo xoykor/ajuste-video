@@ -11,7 +11,12 @@ if ! command -v pacman >/dev/null 2>&1; then
     exit 1
 fi
 
-script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+script_source="${BASH_SOURCE[0]-}"
+if [[ -n "${script_source}" && -f "${script_source}" ]]; then
+    script_dir="$(cd -- "$(dirname -- "${script_source}")" && pwd)"
+else
+    script_dir="${PWD}"
+fi
 needs_checkout=false
 if [[ ! -f "${script_dir}/CMakeLists.txt" ]]; then
     needs_checkout=true
@@ -47,7 +52,7 @@ if [[ "${needs_checkout}" == true ]]; then
         fi
     }
     trap cleanup EXIT
-    source_ref="${AJUSTE_VIDEO_VERSION:-v0.1.5}"
+    source_ref="${AJUSTE_VIDEO_VERSION:-main}"
     git clone --depth 1 --branch "${source_ref}" \
         https://github.com/xoykor/ajuste-video.git "${checkout_dir}/source"
     script_dir="${checkout_dir}/source"
