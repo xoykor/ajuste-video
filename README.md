@@ -42,7 +42,7 @@ O desinstalador preserva seus ajustes em `~/.config/ajuste-video/`.
 ## Controles
 
 - Brilho: −20% a +20%
-- Contraste: 80% a 120% (100% é neutro)
+- Contraste: 20% a 120% (100% é neutro)
 - Gamma: 0,50 a 1,50 (1,00 é neutro)
 - Saturação: 75% a 125% (100% é neutro)
 - Matiz: −30° a +30°
