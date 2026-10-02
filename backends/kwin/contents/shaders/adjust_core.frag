@@ -1,3 +1,5 @@
+#version 140
+
 uniform sampler2D sampler;
 uniform vec4 modulation;
 uniform float brightness;

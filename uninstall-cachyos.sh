@@ -22,10 +22,10 @@ if [[ -e "${kwinrc}" ]]; then
     kwriteconfig6 --file "${kwinrc}" --group Plugins --key ajustevideoEnabled false
     kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo --key Enabled false
 
-    # Ask only this effect to drop its shaders if it is active; never reconfigure all of KWin.
+    # Remove only this effect from the running compositor.
     if command -v qdbus6 >/dev/null 2>&1; then
-        qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect ajustevideo-app >/dev/null 2>&1 || true
-        qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.reconfigureEffect ajustevideo >/dev/null 2>&1 || true
+        qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect ajustevideo-app >/dev/null 2>&1 || true
+        qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect ajustevideo >/dev/null 2>&1 || true
     fi
 fi
 
@@ -66,4 +66,3 @@ rm -rf -- \
     "${XDG_CACHE_HOME:-${HOME}/.cache}/ajuste-video"
 
 echo "Ajuste de vídeo removido. As preferências em ${config_dir}/ajuste-video/ foram preservadas."
-echo "Se o efeito KWin estava ativo, encerre e reabra a sessão para concluir a remoção."

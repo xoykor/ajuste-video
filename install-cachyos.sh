@@ -113,7 +113,7 @@ def old_value(group, key, fallback):
 
 enabled = settings.get("enabled")
 if enabled is None:
-    enabled = old_value(new_group, "Enabled", old_value(legacy_group, "Enabled", "true"))
+    enabled = old_value(new_group, "Enabled", old_value(legacy_group, "Enabled", "false"))
 if isinstance(enabled, bool):
     enabled = "true" if enabled else "false"
 else:
@@ -159,7 +159,25 @@ PY
         kwriteconfig6 --file "${kwinrc}" --group Effect-ajustevideo --key Enabled false
     fi
 
-    echo "Ajuste de vídeo instalado em ${install_prefix}. Encerre e reabra a sessão para o KWin carregar o efeito; o instalador não recarrega o compositor atual."
+    if ! command -v qdbus6 >/dev/null 2>&1; then
+        echo "Não encontrei qdbus6 para carregar o efeito nesta sessão." >&2
+        exit 1
+    fi
+    if ! qdbus6 org.kde.KWin /Effects org.freedesktop.DBus.Peer.Ping >/dev/null 2>&1; then
+        echo "O KWin não está acessível nesta sessão. Os arquivos foram instalados; entre no Plasma e execute o instalador novamente." >&2
+        exit 1
+    fi
+    if [[ "$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded ajustevideo-app)" == true ]]; then
+        qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.unloadEffect ajustevideo-app
+    fi
+    loaded="$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.loadEffect ajustevideo-app)"
+    if [[ "${loaded}" != true ]] || \
+       [[ "$(qdbus6 org.kde.KWin /Effects org.kde.kwin.Effects.isEffectLoaded ajustevideo-app)" != true ]]; then
+        echo "O KWin recusou o efeito. Consulte: journalctl --user -b -u plasma-kwin_wayland.service" >&2
+        exit 1
+    fi
+
+    echo "Ajuste de vídeo instalado em ${install_prefix}; efeito KWin carregado nesta sessão."
 else
     echo "Ajuste de vídeo instalado em ${install_prefix}. Abra o aplicativo para ativar o suporte deste ambiente."
 fi

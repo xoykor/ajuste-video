@@ -1,6 +1,6 @@
 "use strict";
 
-const shaderId = effect.addFragmentShader(Effect.MapTexture, "adjust.frag");
+const shaderId = effect.addFragmentShader(Effect.MapTexture | Effect.Modulate, "adjust.frag");
 let attachedWindows = [];
 let isEnabled = false;
 
@@ -25,7 +25,8 @@ function applyToWindow(window) {
         window: window,
         duration: 1,
         type: Effect.Shader,
-        fragmentShader: shaderId,
+        shader: shaderId,
+        to: 1.0,
         keepAlive: true
     });
     attachedWindows.push({window: window, animationId: animationId});

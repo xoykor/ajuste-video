@@ -4,7 +4,7 @@ Aplicativo gráfico de ajustes globais de imagem para Linux. Oferece brilho, con
 
 ## Ambientes compatíveis
 
-- **KDE Plasma/Wayland:** todos os controles são aplicados pelo efeito do KWin, inclusive em janelas de aplicativos em tela cheia. O instalador `.sh` compila a interface e ativa o efeito JavaScript nos dados do usuário. Conteúdo protegido por DRM pode não receber o efeito.
+- **KDE Plasma/Wayland:** todos os controles são aplicados pelo efeito do KWin, inclusive em janelas de aplicativos em tela cheia. O instalador `.sh` compila a interface e carrega o efeito na sessão atual. Conteúdo protegido por DRM pode não receber o efeito.
 - **GNOME:** todos os controles são aplicados por uma extensão Clutter/Cogl incluída. Use **Instalar suporte** no aplicativo e reabra a sessão.
 - **Cinnamon:** todos os controles são aplicados por uma extensão Clutter/Cogl incluída. Use **Instalar suporte** e reabra a sessão.
 - **XFCE/X11:** brilho e gamma são aplicados por `xrandr` e duram até a sessão terminar. O XFCE/Wayland não tem backend de compositor implementado.
@@ -21,7 +21,7 @@ cd ajuste-video
 ./install-cachyos.sh
 ```
 
-O instalador compila o código-fonte e instala a interface em `~/.local`; as dependências de compilação que faltarem são instaladas pelo `pacman`. No KDE, encerre e reabra a sessão uma vez após instalar para o KWin carregar o efeito. A senha de administrador é usada somente para instalar dependências do sistema; o aplicativo e o efeito ficam nos dados do usuário.
+O instalador compila o código-fonte e instala a interface em `~/.local`; as dependências de compilação que faltarem são instaladas pelo `pacman`. No KDE, o efeito é carregado na sessão atual e fica pronto ao abrir o aplicativo. A senha de administrador é usada somente para instalar dependências do sistema; o aplicativo e o efeito ficam nos dados do usuário.
 
 Para instalar sem clonar manualmente, o script também pode ser executado diretamente do branch `main`:
 
@@ -50,7 +50,7 @@ O desinstalador não usa `sudo` e preserva seus ajustes em `~/.config/ajuste-vid
 
 O efeito também limita esses valores internamente, inclusive se `kwinrc` for editado manualmente.
 
-Os controles e predefinições mostram uma prévia ao vivo. Use **Salvar ajustes** e confirme para manter o perfil; **Descartar prévia** ou fechar a janela restaura o último perfil salvo. Ao reiniciar sem salvar, a prévia expira e o último perfil confirmado volta a ser aplicado. **Restaurar padrão** também é uma prévia até ser salva.
+Os controles e predefinições mostram uma prévia ao vivo. Mover um controle ativa a prévia automaticamente. Use **Salvar ajustes** e confirme para manter o perfil; **Descartar prévia** ou fechar a janela restaura o último perfil salvo. Ao reiniciar sem salvar, a prévia expira e o último perfil confirmado volta a ser aplicado. **Restaurar padrão** também é uma prévia até ser salva.
 
 ## Compilar manualmente
 
@@ -60,7 +60,7 @@ cmake --build build -j"$(nproc)"
 cmake --install build
 ```
 
-São necessárias as dependências de desenvolvimento do Qt 6 para compilar a interface. O processamento global acontece dentro do KWin e requer Plasma 6 com composição OpenGL.
+São necessárias as dependências de desenvolvimento do Qt 6 para compilar a interface. Para instalar e carregar o efeito KWin junto com a interface, use `./install-cachyos.sh`. O processamento global requer Plasma 6 com composição OpenGL.
 
 ## Licença
 
