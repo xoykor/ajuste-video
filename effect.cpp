@@ -66,7 +66,7 @@ void AjusteVideoEffect::readSettings()
     m_enabled = group.readEntry(prefix + QStringLiteral("Enabled"), false);
     // Keep the compositing effect inside conservative bounds, even if kwinrc is edited by hand.
     m_brightness = std::clamp(group.readEntry(prefix + QStringLiteral("Brightness"), 0.0), -0.20, 0.20);
-    m_contrast = std::clamp(group.readEntry(prefix + QStringLiteral("Contrast"), 1.0), 0.80, 1.20);
+    m_contrast = std::clamp(group.readEntry(prefix + QStringLiteral("Contrast"), 1.0), 0.20, 1.20);
     m_gamma = std::clamp(group.readEntry(prefix + QStringLiteral("Gamma"), 1.0), 0.50, 1.50);
     m_saturation = std::clamp(group.readEntry(prefix + QStringLiteral("Saturation"), 1.0), 0.75, 1.25);
     m_hue = std::clamp(group.readEntry(prefix + QStringLiteral("Hue"), 0.0), -30.0, 30.0);
